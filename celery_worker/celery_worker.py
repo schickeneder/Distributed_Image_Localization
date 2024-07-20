@@ -16,3 +16,8 @@ celery = make_celery()
 def add_together(a, b):
     print("running add_together from celery_work tasks.py")
     return a + b
+
+@celery.task(name='tasks.gpu_test')
+def add_together(a, b):
+    print("running add_together from celery_work tasks.py")
+    return a + b

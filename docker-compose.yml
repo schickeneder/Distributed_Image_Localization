@@ -29,3 +29,16 @@ services:
 
   redis:
     image: redis:7.0.5-alpine
+
+  gpu_test:
+    image: pytorch/pytorch
+    command: nvidia-smi
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [ gpu ]
