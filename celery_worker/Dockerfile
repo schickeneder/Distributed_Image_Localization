@@ -1,10 +1,10 @@
-FROM python:3.12.4
+FROM python:3.9
 
-#WORKDIR /usr/src/app/
+#WORKDIR /app
 
 COPY requirements.txt requirements.txt
 RUN pip install -r requirements.txt
 
 COPY . .
 
-CMD ["celery", "-A", "app.celery", "worker", "--loglevel=info"]
+CMD ["celery", "-A", "celery_worker.celery", "worker", "--loglevel=info"]
