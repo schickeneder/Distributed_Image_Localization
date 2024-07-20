@@ -1,0 +1,46 @@
+version: '3.8' #version of docker compose file
+
+services:
+
+  redis:
+    image: redis:7.0.15-alpine3.20
+
+  django:
+    container_name: django
+    build:
+      context:  ./dcelery
+    command: python manage.py runserver 0.0.0.0:8000
+    volumes:
+      - ./dcelery:/usr/src/app/
+    ports:
+      - 8001:8000
+    environment:
+      - DEBUG=1
+      - SECRET_KEY=a34gag434g5
+      - ALLOWED_HOSTS=localhost,127.0.0.1
+
+  celery:
+    container_name: celery
+    build:
+      context: ./dcelery
+    command: celery --app=dcelery worker -l INFO -Q queue1
+    volumes:
+      - ./dcelery:/usr/src/app/
+    environment:
+      - DEBUG=1
+      - SECRET_KEY=a34gag434g5
+      - ALLOWED_HOSTS=localhost,127.0.0.1
+    depends_on:
+      - redis
+      - django
+
+  celery2:
+    build:
+      context: ./celeryworker
+      dockerfile: Dockerfile
+    command: celery -A celerytask worker -l INFO -Q queue2
+    volumes:
+      - ./celeryworker:/usr/src/app/
+    depends_on:
+      - redis
+      - django
