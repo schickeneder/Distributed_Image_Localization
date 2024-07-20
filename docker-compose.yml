@@ -22,8 +22,8 @@ services:
     environment:
       - CELERY_BROKER_URL=redis://redis:6379/0
       - CELERY_RESULT_BACKEND=redis://redis:6379/0
-    volumes:
-      - ../flask_app:/usr/src/app/
+#    volumes:
+#      - ../flask_app:/usr/src/app/
     depends_on:
       - redis
 
@@ -42,3 +42,22 @@ services:
             - driver: nvidia
               count: all
               capabilities: [ gpu ]
+
+  gpu_celery_worker:
+    image: pytorch/pytorch
+    build:
+      context: ./gpu_celery_worker
+    #command: nvidia-smi
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [ gpu ]
+    depends_on:
+      - redis

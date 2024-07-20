@@ -30,6 +30,11 @@ def longtask():
     task = add_together.delay(23, 42)
     return f'Task ID: {task.id}'
 
+@app.route('/gputask')
+def gputask():
+    task = gpu_test.delay()
+    return f'Task ID: {task.id}'
+
 @app.route('/result/<task_id>')
 def get_result(task_id):
     task = celery.AsyncResult(task_id)
@@ -64,6 +69,10 @@ def tasks():
 @celery.task(name='tasks.add_together')
 def add_together(a, b):
     return a + b
+
+@celery.task(name='tasks.gpu_test')
+def gpu_test():
+    return
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0',debug=True)
