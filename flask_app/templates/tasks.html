@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Recent Tasks</title>
+</head>
+<body>
+    <h1>Recent Tasks</h1>
+    <ul>
+        {% for task in tasks %}
+            <li>
+                <strong>Task ID:</strong> {{ task.task_id }}<br>
+                <strong>Date:</strong> {{ task['date_done'] }}<br>
+                <strong>Status:</strong> {{ task['status'] }}<br>
+                <strong>Result:</strong> {{ task['result'] }}<br>
+            </li>
+        {% endfor %}
+    </ul>
+</body>
+</html>
