@@ -1,0 +1,14 @@
+helium_SD_v2_cleaned.csv - contains the corrected SD-SEA drive
+helium_bounded_SD_v2.csv - contains a subset of the above bounded by the rectangle below
+
+
+
+San Diego corridor, rectangle
+
+Bottom Left
+
+32.66532898815107, -117.25695308655507
+
+Top Right
+
+32.825880603657716, -117.16940578910736

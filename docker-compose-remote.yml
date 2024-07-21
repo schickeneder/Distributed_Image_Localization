@@ -43,10 +43,28 @@ services:
               count: all
               capabilities: [ gpu ]
 
-  gpu_celery_worker:
-    image: pytorch/pytorch
+#  gpu_celery_worker:
+#    image: pytorch/pytorch
+#    build:
+#      context: ./gpu_celery_worker
+#    #command: nvidia-smi
+#    environment:
+#      - NVIDIA_VISIBLE_DEVICES=all
+#      - CELERY_BROKER_URL=${REDIS_URL}
+#      - CELERY_RESULT_BACKEND=${REDIS_URL}
+#    deploy:
+#      resources:
+#        reservations:
+#          devices:
+#            - driver: nvidia
+#              count: all
+#              capabilities: [ gpu ]
+
+  dl_gpu_celery_worker:
+    container_name: dl_gpu
+    image: pytorch/manylinux-cuda124
     build:
-      context: ./gpu_celery_worker
+      context: ./dl_gpu_celery_worker
     #command: nvidia-smi
     environment:
       - NVIDIA_VISIBLE_DEVICES=all
