@@ -11,7 +11,7 @@ app.config['CELERY_BROKER_URL'] = os.environ.get('CELERY_BROKER_URL') # must con
 app.config['CELERY_RESULT_BACKEND'] = os.environ.get('CELERY_RESULT_BACKEND')
 app.config['REDIS_HOST'] = os.environ.get('REDIS_HOST')
 app.config['REDIS_PASS'] = os.environ.get('REDIS_PASS')
-
+app.config['REDIS_STATE'] = os.environ.get('REDIS_STATE')
 
 
 def make_celery(app):
@@ -46,16 +46,30 @@ def gputask():
     # If user will supply parameters from web interface, that will need to be processed here..
     return f'Task ID: {task.id}'
 
+# @app.route('/remove_one')
+# def remove_one():
+#     results = []
+#     task_count = 0
+#     for value in range(0,10):
+#         results.append(celery.send_task('tasks.helium_train',args=[task_count],queue="GPU_queue"))
+#         task_count += 1
+#     #task = helium_train_remove_one.delay()
+#     return f'Task IDs: {[task.id for task in results]}'
+
 @app.route('/remove_one')
 def remove_one():
-    results = []
     task_count = 0
+    tasks = []
     for value in range(0,10):
-        results.append(celery.send_task('tasks.helium_train',args=[task_count],queue="GPU_queue"))
+        tasks.append(celery.signature('tasks.helium_train',args=[task_count],options={"queue":"GPU_queue"}))
         task_count += 1
     #task = helium_train_remove_one.delay()
+    job = group(tasks)
+    results = job.apply_async()
+    #results.join()
     return f'Task IDs: {[task.id for task in results]}'
 
+#
 @app.route('/result/<task_id>')
 def get_result(task_id):
     task = celery.AsyncResult(task_id)

@@ -1,19 +1,88 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Recent Tasks</title>
+    <style>
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            padding: 12px;
+            border: 1px solid #ddd;
+            text-align: left;
+            cursor: pointer;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+    </style>
 </head>
 <body>
     <h1>Recent Tasks</h1>
-    <ul>
-        {% for task in tasks %}
-            <li>
-                <strong>Task ID:</strong> {{ task.task_id }}<br>
-                <strong>Date:</strong> {{ task['date_done'] }}<br>
-                <strong>Status:</strong> {{ task['status'] }}<br>
-                <strong>Result:</strong> <br> {{ task['result'] }}<br>
-            </li>
-        {% endfor %}
-    </ul>
+    <table id="tasksTable">
+        <thead>
+            <tr>
+                <th onclick="sortTable(0)">Task ID</th>
+                <th onclick="sortTable(1)">Date</th>
+                <th onclick="sortTable(2)">Status</th>
+                <th onclick="sortTable(3)">Result</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for task in tasks %}
+            <tr>
+                <td>{{ task.task_id }}</td>
+                <td>{{ task.date_done }}</td>
+                <td>{{ task.status }}</td>
+                <td>{{ task.result }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            sortTable(1, 'desc');
+        });
+
+        function sortTable(columnIndex, defaultDir) {
+            var table, rows, switching, i, x, y, shouldSwitch, dir, switchcount = 0;
+            table = document.getElementById("tasksTable");
+            switching = true;
+            dir = defaultDir || "asc";
+            while (switching) {
+                switching = false;
+                rows = table.rows;
+                for (i = 1; i < (rows.length - 1); i++) {
+                    shouldSwitch = false;
+                    x = rows[i].getElementsByTagName("TD")[columnIndex];
+                    y = rows[i + 1].getElementsByTagName("TD")[columnIndex];
+                    if (dir == "asc") {
+                        if (new Date(x.innerHTML) > new Date(y.innerHTML)) {
+                            shouldSwitch = true;
+                            break;
+                        }
+                    } else if (dir == "desc") {
+                        if (new Date(x.innerHTML) < new Date(y.innerHTML)) {
+                            shouldSwitch = true;
+                            break;
+                        }
+                    }
+                }
+                if (shouldSwitch) {
+                    rows[i].parentNode.insertBefore(rows[i + 1], rows[i]);
+                    switching = true;
+                    switchcount ++;
+                } else {
+                    if (switchcount == 0 && dir == "asc") {
+                        dir = "desc";
+                        switching = true;
+                    }
+                }
+            }
+        }
+    </script>
 </body>
 </html>

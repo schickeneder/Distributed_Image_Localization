@@ -1,6 +1,7 @@
 from celery import Celery
 import os
 import subprocess
+import time
 
 def make_celery():
     celery = Celery(
@@ -28,4 +29,5 @@ def gpu_test():
 
 @celery.task(name='tasks.helium_train')
 def helium_train(data):
+    time.sleep(10)
     return data
