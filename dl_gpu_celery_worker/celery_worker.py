@@ -25,3 +25,7 @@ def gpu_test():
     print('stderr:', result.stderr)
     print('Return code:', result.returncode)
     return result.stdout
+
+@celery.task(name='tasks.helium_train')
+def helium_train(data):
+    return data
