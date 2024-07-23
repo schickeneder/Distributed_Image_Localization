@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Task Table</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        table, th, td {
+            border: 1px solid #ddd;
+        }
+        th, td {
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+        tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+        tr:hover {
+            background-color: #f1f1f1;
+        }
+    </style>
+</head>
+<body>
+    <h1>Task Group Table</h1>
+    <table>
+        <thead>
+            <tr>
+                <th>Group</th>
+                <th>Start Time</th>
+                <th>Completion</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for group in groups.keys() %}
+            <tr>
+                <td>{{ group }}</td>
+                <td>{{ groups[group].start_time }}</td>
+                <td>{{ completion_counts[group] }}</td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="3">No data available</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</body>
+</html>

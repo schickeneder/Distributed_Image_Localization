@@ -1,10 +1,13 @@
-from flask import Flask,jsonify,request,render_template
+from flask import Flask,jsonify,request,render_template,current_app
 from celery import Celery
 from celery import group
 from celery import Task
 import json
 import os
 import redis
+import hashlib
+from datetime import datetime
+
 
 app = Flask(__name__)
 app.config['CELERY_BROKER_URL'] = os.environ.get('CELERY_BROKER_URL') # must contain password in URL for remote
@@ -12,6 +15,7 @@ app.config['CELERY_RESULT_BACKEND'] = os.environ.get('CELERY_RESULT_BACKEND')
 app.config['REDIS_HOST'] = os.environ.get('REDIS_HOST')
 app.config['REDIS_PASS'] = os.environ.get('REDIS_PASS')
 app.config['REDIS_STATE'] = os.environ.get('REDIS_STATE')
+app.config['GROUP_JOBS'] = {} # make a dict to support other metadata like start time
 
 
 def make_celery(app):
@@ -65,10 +69,27 @@ def remove_one():
         task_count += 1
     #task = helium_train_remove_one.delay()
     job = group(tasks)
-    results = job.apply_async()
-    #results.join()
-    return f'Task IDs: {[task.id for task in results]}'
+    task_ids = job.apply_async()
+    checksum = hashlib.sha1(''.join(str(task_ids)).encode('utf-8')).hexdigest()[:16]
+    current_app.config['GROUP_JOBS'][checksum] = {"group" : task_ids,"start_time" : datetime.now().isoformat()}
+    task_str = [str(task) for task in task_ids]
+    return f'Task IDs: {task_str} {current_app.config['GROUP_JOBS'][checksum]["start_time"]}'
 
+@app.route('/recent_group_status')
+def recent_group_status():
+    groups = current_app.config['GROUP_JOBS']
+    completion_counts = {}
+    for group in groups.keys():
+        #checksum = hashlib.sha1(''.join(str(group)).encode('utf-8')).hexdigest()[:16]
+        success_count = 0
+        for task in groups[group]["group"]:
+            if task.status == 'SUCCESS':
+                success_count += 1
+        completion_counts[str(group)] = f"{success_count}/{len(group)}"
+
+    #checksum = hashlib.sha1(''.join(str(recent_groups)).encode('utf-8')).hexdigest()[:16]
+    #return (f"Recent Group: {checksum}: {success_count}/{len(recent_groups)} Complete")
+    return render_template('recent_group_status.html', completion_counts=completion_counts, groups=groups)
 #
 @app.route('/result/<task_id>')
 def get_result(task_id):
