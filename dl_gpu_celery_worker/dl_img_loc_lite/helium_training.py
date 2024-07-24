@@ -34,7 +34,38 @@ device = torch.device('cuda')
 all_results = {}
 
 
-def main(params_):
+def main(passed_params = {None}):
+    # import parameters:
+    if 'max_num_epochs' in passed_params:
+        max_num_epochs = passed_params['max_num_epochs']
+    else:
+        max_num_epochs = 200
+    if 'num_training_repeats' in passed_params:
+        num_training_repeats = passed_params['num_training_repeats']
+    else:
+        num_training_repeats = 1
+    if 'batch_size' in passed_params:
+        batch_size = passed_params['batch_size']
+    else:
+        batch_size = 64
+    # if 'data_format' in passed_params:
+    #     data_format = passed_params['data_format']
+    # else:
+    #     data_format = 'helium_ds9'
+    if 'data_filename' in passed_params:
+        data_filename = passed_params['data_filename'] # else it should default to full helium dataset?
+    else:
+        data_filename = None
+    if 'coordinates' in passed_params:
+        coordinates = passed_params['coordinates']
+    else:
+        coordinates = None
+    if 'rx_blacklist' in passed_params:
+        rx_blacklist = passed_params['rx_blacklist']
+    else:
+        rx_blacklist = None
+
+
     global dataset_index
     global meter_scale
     cmd_line_params = []
@@ -66,6 +97,9 @@ def main(params_):
             "batch_size": batch_size,
             "random_state": random_state,
             "include_elevation_map": include_elevation_map,
+            # "data_format": data_format,
+            "data_filename": data_filename,
+            "rx_blacklist": rx_blacklist,
         }
         params = LocConfig(**dict_params)  # sets up parameters, also some unique defaults depending on the dataset
 
@@ -150,4 +184,5 @@ def get_results(filename: str, dlloc: DLLocalization, rldataset: RSSLocDataset):
 
 
 if __name__ == '__main__':
+    params = {"max_num_epochs": 20, "num_training_repeats": 1, "batch_size": 64,}
     main()

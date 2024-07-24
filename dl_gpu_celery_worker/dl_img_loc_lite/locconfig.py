@@ -34,6 +34,9 @@ class LocConfig():
             include_elevation_map: bool = False,
             should_augment = False,
             augmentation = None,
+            data_filename: str = None,
+            coordinates = None,
+            rx_blacklist = None,
     ):
         dataset_strings = {'utah44':1, 'outdoor44':2, 'hallways2tx':3, 'outdoor2tx':4, 'orbit5tx':5, 'utah_frs':6, 'antwerp_lora':7, 'utah_cbrs':8, 'bounded_SD':9}
         dataset_options = [1,2,3,4,5,6,7,8,9, 'utah44', 'outdoor44', 'hallways2tx', 'outdoor2tx', 'orbit5tx', 'utah_frs', 'antwerp_lora', 'utah_cbrs', 'bounded_SD']
@@ -84,6 +87,9 @@ class LocConfig():
             'adv_train': 'AdvTr',
             'augmentation': 'Aug'
         }
+        self.data_filename = data_filename
+        self.coordinates = coordinates
+        self.rx_blacklist = rx_blacklist
 
     def __str__(self):
         if self.apply_rss_noise:

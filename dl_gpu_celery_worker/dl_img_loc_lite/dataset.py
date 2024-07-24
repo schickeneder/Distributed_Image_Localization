@@ -38,7 +38,8 @@ data_files = {
 
 class RSSLocDataset():
     class Samples():
-        def __init__(self, rldataset, rx_vecs=None, tx_vecs=None, filter_boundaries=[], filter_rx=False, tx_metadata=None, no_shift=False):
+        def __init__(self, rldataset, rx_vecs=None, tx_vecs=None, filter_boundaries=[], filter_rx=False,
+                     tx_metadata=None, no_shift=False):
             """
             rx_vecs: Iterable of Rx rss and locations
             tx_vecs: Iterable of Tx locations
@@ -57,7 +58,7 @@ class RSSLocDataset():
             self.rectangle_height = self.rldataset.max_y - self.rldataset.min_y + 2*self.rldataset.buffer*meter_scale
             self.rectangle_width = round(self.rectangle_width / (meter_scale*2)) * meter_scale*2
             self.rectangle_height = round(self.rectangle_height / (meter_scale*2)) * meter_scale*2
-            
+
             if len(filter_boundaries) > 0:
                 for i, filter_boundary in enumerate(filter_boundaries):
                     if not isinstance(filter_boundary, Polygon):
@@ -90,7 +91,7 @@ class RSSLocDataset():
             #print(f"self.tx_vecs {self.tx_vecs}")
             self.max_num_tx = max([len(vec) for vec in self.tx_vecs]) # + [0]) # in some grids we may have no TXers?
             self.max_num_rx = self.rldataset.max_num_rx
-        
+
         def make_tensors(self):
             self.made_tensors = True
 
@@ -1113,7 +1114,11 @@ class RSSLocDataset():
                 # with open(data_file, 'r') as f:
                 #     print(f)
                 #     data = json.load(f)
-                with open(ds9_path) as f:
+                if self.params.data_filename:
+                    filepath = self.params.data_filename
+                else:
+                    filepath = ds9_path
+                with open(filepath) as f:
                     #----------------------- from dataset < 5
                     lines = f.readlines()
                     #rx_loc_inds = {}
@@ -1122,7 +1127,10 @@ class RSSLocDataset():
                 used_ids = {}
 
                 # set data filter boundaries
-                boundary_gps_coordinates = coordinates.HELIUMSD_LATLON # TODO: may need to fix this (Bottom left, top right?)
+                if self.params.coordinates:
+                    boundary_gps_coordinates = self.params.coordinates
+                else:
+                    boundary_gps_coordinates = coordinates.HELIUMSD_LATLON # TODO: may need to fix this (Bottom left, top right?)
                 if len(boundary_gps_coordinates) == 4:
                     bounds = Polygon(boundary_gps_coordinates)
                 else:
@@ -1181,6 +1189,10 @@ class RSSLocDataset():
                      '47.58049332880381', '47.58292549332933', '47.585471925347406', '47.58853890118896',
                      '47.58902400026363', '47.58944644884187', '47.59340963652312', '47.59864847808752',
                      '47.60566438533686', '47.60595473978473', '47.60637337907797', '47.609964745154365'] #10th
+
+                    if self.params.rx_blacklist:
+                        if str(rx_lat) in self.params.rx_blacklist:
+                            continue
 
                     # if str(rx_lat) in rx_blacklist: # skip this RX
                     #     #print(f"Skipping RX node {rx_lat}")
