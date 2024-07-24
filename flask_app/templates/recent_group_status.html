@@ -42,7 +42,7 @@
             </tr>
         </thead>
         <tbody>
-            {% for group in groups.keys() %}
+            {% for group in groups.keys()|reverse %}
             <tr>
                 <td>{{ group }}</td>
                 <td>{{ groups[group].start_time }}</td>
