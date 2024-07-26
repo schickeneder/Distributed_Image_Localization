@@ -55,17 +55,19 @@ def get_rx_lats_task(params):
 def split_and_group_rx_lats(rx_lats):
     print(f"****args for tasks.split_and_group_rx_lats: {rx_lats}")
     g = group(group_remove_one2.s(rx_lat).set(queue="GPU_queue") for rx_lat in rx_lats[:3])
-    res = g()
+    #res = g()
+    res = chord(g)(process_remove_one_results.s().set(queue="GPU_queue"))
     print(f" res {res} ")
     return 2
 
 @celery.task(name='tasks.group_remove_one2')
 def group_remove_one2(params):
     print(f"****args for tasks.group_remove_one2: {params}")
-    return 3
+    time.sleep(random.randrange(0,15))
+    return params+1
 
 @celery.task(name='tasks.process_remove_one_results')
-def process_remove_one_results(results):
-    print("running process_remove_one_results")
-    return f"all done and results {results}"
+def process_remove_one_results(params):
+    print(f"****args for tasks.process_remove_one_results: {params}")
+    return f"all done"
 
