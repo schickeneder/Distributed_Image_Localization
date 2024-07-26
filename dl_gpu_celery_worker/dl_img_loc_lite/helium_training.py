@@ -6,6 +6,8 @@ from localization import DLLocalization
 from locconfig import LocConfig
 from dataset import RSSLocDataset
 from models import CoMLoss, SlicedEarthMoversDistance
+import csv
+from coordinates import HELIUMSD_LATLON
 
 from attacker import batch_wrapper, get_all_attack_preds_without_grad
 
@@ -31,7 +33,62 @@ batch_size = 64 if should_train else 64
 num_training_repeats = 1
 
 device = torch.device('cuda')
-all_results = {}
+
+def is_between(number, var1, var2):
+    lower_bound = min(var1, var2)
+    upper_bound = max(var1, var2)
+    #return True
+    return lower_bound <= number <= upper_bound
+
+# Returns all unique rx_lat values from the dataset in a list of floats
+# assumes ds9 file format where rx_lat (or lat2) would be row[3]
+# excludes any rows where TX or RX is outside the boundary of coordinates
+# only works for rectangles, won't work with polygons right now
+def get_rx_lats(passed_params = {None}):
+    rx_lats = set()
+    if 'data_filename' in passed_params:
+        file_path = passed_params["data_filename"]
+    else:
+        print(f"ERROR: No data_filename specified in passed_params")
+        return []
+    if 'coordinates' in passed_params:
+        coordinates = passed_params['coordinates']
+    else:
+        print(f"ERROR: No coordinates specified in passed_params, using defaults")
+        coordinates = HELIUMSD_LATLON
+
+    with open(file_path, newline='') as csvfile:
+        csvreader = csv.reader(csvfile)
+
+        # Skip the header row
+        next(csvreader)
+
+        for row in csvreader:
+            try:
+                lat1 = float(row[1])
+                lon1 = float(row[2])
+                lat2 = float(row[3])
+                lon2 = float(row[4])
+
+                if is_between(lat1, coordinates[0][0],coordinates[1][0]) and \
+                    is_between(lon1, coordinates[0][1], coordinates[1][1]) and \
+                    is_between(lat2, coordinates[0][0], coordinates[1][0]) and \
+                    is_between(lon2, coordinates[0][1], coordinates[1][1]):
+
+                    rx_lat = float(lat2)
+                    #print(f"row {row} is between {coordinates}")
+                else:
+                    #print(f"row {row} is not between {coordinates}")
+                    continue
+
+                rx_lats.add(rx_lat)
+
+            except (IndexError, ValueError) as e:
+                # Handle the case where the row does not have enough columns
+                # or the conversion to float fails
+                print(f"Skipping row: {row} due to error: {e}")
+
+    return list(rx_lats)
 
 
 def main(passed_params = {None}):
@@ -64,6 +121,14 @@ def main(passed_params = {None}):
         rx_blacklist = passed_params['rx_blacklist']
     else:
         rx_blacklist = None
+    if 'func_list' in passed_params:
+        func_list = passed_params['func_list']
+    else:
+        func_list = ["COM","MSE","EMD"]
+    if 'results_type' in passed_params:
+        results_type = passed_params['results_type']
+    else:
+        results_type = "default"
 
 
     global dataset_index
@@ -74,11 +139,22 @@ def main(passed_params = {None}):
     parser.add_argument("--random_ind", type=int, default=-1, help='Random Int for selecting set of params')
     args = parser.parse_args()
 
+    all_results = []
+
+    # select the chosen loss_functions:
+    loss_funcs = []
+    if "COM" in func_list:
+        loss_funcs.append(CoMLoss())
+    if "MSE" in func_list:
+        loss_funcs.append(torch.nn.MSELoss())
+    if "EMD" in func_list:
+        loss_funcs.append(SlicedEarthMoversDistance(num_projections=100, scaling=0.01, p=1))
+
+
     for random_state in range(0, num_training_repeats):
         for di in [9]:  # ,7,8,9]:
             for split in ['random', 'grid2', 'grid5']:  # , 'grid10']:
-                for loss_func in [CoMLoss(), torch.nn.MSELoss(),
-                                  SlicedEarthMoversDistance(num_projections=100, scaling=0.01, p=1)]:
+                for loss_func in loss_funcs:
                     cmd_line_params.append([di, split, random_state, loss_func])
 
     if args.param_selector > -1:
@@ -90,7 +166,7 @@ def main(passed_params = {None}):
 
     for ind, param_set in enumerate(param_list):
         dataset_index, split, random_state, loss_func = param_set
-        print(param_set)
+        print(param_set) # *********** other important part **************
         dict_params = {
             "dataset": dataset_index,
             "data_split": split,
@@ -104,14 +180,12 @@ def main(passed_params = {None}):
         params = LocConfig(**dict_params)  # sets up parameters, also some unique defaults depending on the dataset
 
         loss_label = 'com' if isinstance(loss_func, CoMLoss) else 'mse' if isinstance(loss_func,
-                                                                                      torch.nn.MSELoss) else 'emd' if isinstance(
-            loss_func, SlicedEarthMoversDistance) else 'unknown'
+                    torch.nn.MSELoss) else 'emd' if isinstance(loss_func, SlicedEarthMoversDistance) else 'unknown'
         param_string = f"{params}_{loss_label}"
         modified_param_string = param_string.replace(':', '-')  # added this fix for Win file systems compat.
         print(f"parameter string {modified_param_string}")
         PATH = 'models/%s__model.pt' % modified_param_string
         model_ending = 'train_val.'
-        global all_results
         pickle_filename = 'results/augment_%s.pkl' % modified_param_string
         model_filename = PATH.replace('model.', 'model_' + model_ending)
 
@@ -130,7 +204,13 @@ def main(passed_params = {None}):
             results = save_results(dlloc, rldataset, model_filename, pickle_filename)
         for key in results['err']:
             # print("results err mean()")
+            #********************* this is the important part ******************************
             print(key, results['err'][key].mean())
+            if results_type == "remove_one" and "_test" in key:
+                result_row = param_set + [key]
+                all_results.append(result_row)
+
+    return all_results # return main()
 
 
 def save_results(dlloc: DLLocalization, rldataset, model_filename, pickle_filename):
@@ -180,6 +260,7 @@ def get_results(filename: str, dlloc: DLLocalization, rldataset: RSSLocDataset):
                 adv_err = np.linalg.norm(truth - res, axis=1)
                 results['err'][key + '_' + str] = adv_err
                 results['preds'][key + '_' + str] = res
+
     return results
 
 

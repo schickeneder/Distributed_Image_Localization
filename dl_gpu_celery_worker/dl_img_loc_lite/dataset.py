@@ -403,7 +403,8 @@ class RSSLocDataset():
         special_keys = []
         data_key_prefix = '%.1ftestsize' % params.test_size
         if split == 'random' or split == 'random_limited':
-            if data_key_prefix + '_train' in self.data.keys(): return '0.2testsize_train', '0.2testsize_test'
+            if data_key_prefix + '_train' in self.data.keys():
+                return '0.2testsize_train', '0.2testsize_test'
             if self.params.dataset_index in [6,8]:
                 if 'campus' not in self.data.keys():
                     self.make_filtered_sample_source([coordinates.CAMPUS_POLYGON], 'campus')
@@ -422,7 +423,7 @@ class RSSLocDataset():
             if grid_size == 2 and self.params.dataset_index == 8 and self.params.use_alt_for_ds8_grid2:
                 random_state = 1
             train_key, test_key = self.separate_dataset('grid', grid_size=grid_size, data_key_prefix=data_key_prefix, train_split=params.training_size, source_key=train_random, random_state=random_state)
-            train_val_key, test_extra_key = self.separate_dataset('grid', grid_size=grid_size, data_key_prefix=data_key_prefix, train_split=params.training_size, source_key=test_random, random_state=random_state, keys=['train_val', 'test_extra'])
+            train_val_key, test_extra_key = self.separate_dataset('grid', grid_size=grid_size, data_key_prefix=data_key_prefix, train_split=params.training_size, source_key=test_random, random_state=random_state, keys=['train_val', '2test_extra'])
             test_keys = [test_key, train_val_key]
             if len(self.data[test_key].rx_vecs) < 100:
                 test_keys.append(test_extra_key)
@@ -1192,6 +1193,7 @@ class RSSLocDataset():
 
                     if self.params.rx_blacklist:
                         if str(rx_lat) in self.params.rx_blacklist:
+                            #print(f"Skipping RX node {rx_lat}")
                             continue
 
                     # if str(rx_lat) in rx_blacklist: # skip this RX
