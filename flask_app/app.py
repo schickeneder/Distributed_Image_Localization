@@ -1,7 +1,5 @@
 from flask import Flask,jsonify,request,render_template,current_app
-from celery import Celery
-from celery import group
-from celery import Task
+from celery import Celery, group, chain, chord
 import json
 import os
 import redis
@@ -75,6 +73,22 @@ def remove_one():
     task_str = [str(task) for task in task_ids]
     return f'Task IDs: {task_str} {current_app.config['GROUP_JOBS'][checksum]["start_time"]}'
 
+@app.route('/remove_one2')
+def remove_one2():
+
+    params = {"max_num_epochs": 2, "num_training_repeats": 1, "batch_size": 64, "rx_blacklist": [],
+              'func_list': ["MSE"], "data_filename": "datasets/helium_SD/filtered_Seattle_data.csv",
+              "results_type": "remove_one"}
+
+    task1 = celery.signature("tasks.get_rx_lats",args=[params],options={"queue":"GPU_queue"})
+    task2 = celery.signature('tasks.split_and_group',options={"queue":"GPU_queue"})
+    task3 = celery.signature('tasks.process_remove_one_results',options={"queue":"GPU_queue"})
+    workflow = chain(task1,task2)
+
+    result = workflow.apply_async()
+
+    return f'workflow result: {result}'
+
 @app.route('/recent_group_status')
 def recent_group_status():
     groups = current_app.config['GROUP_JOBS']
@@ -128,6 +142,10 @@ def add_together(a, b):
 
 @celery.task(name='tasks.gpu_test')
 def gpu_test():
+    return
+
+@celery.task(name='tasks.group_remove_one')
+def group_remove_one(results):
     return
 
 # @celery.task(name='tasks.helium_train')
