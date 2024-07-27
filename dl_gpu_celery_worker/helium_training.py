@@ -1,7 +1,6 @@
 import numpy as np
 import torch
 import pickle
-import argparse
 from localization import DLLocalization
 from locconfig import LocConfig
 from dataset import RSSLocDataset
@@ -14,25 +13,6 @@ from attacker import batch_wrapper, get_all_attack_preds_without_grad
 # this is intended to be used only for the helium network dataset (data set 9 in dataset.py)
 # need to setup this file to read parameters from a json structure that gets passed in..
 
-# parameters should include:
-# here:max_num_epochs, batch_size, num_training_repeats,
-# dataset: ds9_path, rx_blacklist
-# locconfig: meter_scale (?) min sensors, min dropout, lots of others..?
-# coordinates: HELIUMSD_LATLON
-
-# should_train = True
-# should_load_model = False
-# restart_optimizer = False
-#
-# # Specify params
-# max_num_epochs = 200
-# include_elevation_map = False  # True
-#
-# batch_size = 64 if should_train else 64
-#
-# num_training_repeats = 1
-#
-# device = torch.device('cuda')
 
 def is_between(number, var1, var2):
     lower_bound = min(var1, var2)
