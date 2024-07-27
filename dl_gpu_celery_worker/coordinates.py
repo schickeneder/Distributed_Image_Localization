@@ -60,3 +60,4 @@ def convert_gps_to_utm(gps_coordinates, origin_to_subtract=None):
         x -= origin_to_subtract[0]
         y -= origin_to_subtract[1]
     return np.vstack((x, y)).T
+

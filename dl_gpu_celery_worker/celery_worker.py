@@ -1,10 +1,10 @@
-from celery import Celery
+from celery import Celery, chord, group
 import os, sys
 import subprocess
 import time
 import random
-#from dl_img_loc_lite import helium_training
-from celery import chord, group
+import helium_training
+
 
 def make_celery():
     celery = Celery(
@@ -15,9 +15,19 @@ def make_celery():
     print("making celery worker")
     return celery
 
-# current_dir = os.path.dirname(os.path.abspath(__file__))
-# sys.path.append(os.path.join(current_dir, 'dl_img_loc_lite'))
+
+# SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+# sys.path.append(os.path.dirname(SCRIPT_DIR))
+
+#sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+
+#sys.path.append(os.path.join(os.path.dirname(__file__), 'dl_img_loc_lite'))
+
+# new_path = os.path.join(os.getcwd(),'dl_img_loc_lite')
+# sys.path.append(new_path)
 #os.chdir('dl_img_loc_lite')
+
+
 celery = make_celery()
 
 @celery.task(name='tasks.add_together')
@@ -46,9 +56,9 @@ def helium_train(data):
 
 @celery.task (name='tasks.get_rx_lats')
 def get_rx_lats_task(params):
-    #rx_lats = helium_training.get_rx_lats(params)
+    rx_lats = (helium_training.get_rx_lats(params))
     print(f"****args for task.get_rx_lats: {params}")
-    rx_lats = [1,2,3]
+    #rx_lats = [1,2,3]
     return rx_lats
 
 @celery.task(name='tasks.split_and_group')
