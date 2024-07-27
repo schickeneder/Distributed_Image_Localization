@@ -20,19 +20,19 @@ from attacker import batch_wrapper, get_all_attack_preds_without_grad
 # locconfig: meter_scale (?) min sensors, min dropout, lots of others..?
 # coordinates: HELIUMSD_LATLON
 
-should_train = True
-should_load_model = False
-restart_optimizer = False
-
-# Specify params
-max_num_epochs = 200
-include_elevation_map = False  # True
-
-batch_size = 64 if should_train else 64
-
-num_training_repeats = 1
-
-device = torch.device('cuda')
+# should_train = True
+# should_load_model = False
+# restart_optimizer = False
+#
+# # Specify params
+# max_num_epochs = 200
+# include_elevation_map = False  # True
+#
+# batch_size = 64 if should_train else 64
+#
+# num_training_repeats = 1
+#
+# device = torch.device('cuda')
 
 def is_between(number, var1, var2):
     lower_bound = min(var1, var2)
@@ -54,7 +54,7 @@ def get_rx_lats(passed_params = {None}):
     if 'coordinates' in passed_params:
         coordinates = passed_params['coordinates']
     else:
-        print(f"ERROR: No coordinates specified in passed_params, using defaults")
+        print(f"WARNING: No coordinates specified in passed_params, using defaults")
         coordinates = HELIUMSD_LATLON
 
     with open(file_path, newline='') as csvfile:
@@ -91,12 +91,29 @@ def get_rx_lats(passed_params = {None}):
     return list(rx_lats)
 
 
-def main(passed_params = {None}):
+def main_process(passed_params = {None}):
+
+    # formerly globals **********
+    should_train = True
+    should_load_model = False
+    restart_optimizer = False
+
+    # Specify params
+    #max_num_epochs = 200
+    include_elevation_map = False  # True
+
+    batch_size = 64 if should_train else 64
+
+    #num_training_repeats = 1
+
+    device = torch.device('cuda')
+    #*************************
+
     # import parameters:
     if 'max_num_epochs' in passed_params:
         max_num_epochs = passed_params['max_num_epochs']
     else:
-        max_num_epochs = 200
+        max_num_epochs = 201
     if 'num_training_repeats' in passed_params:
         num_training_repeats = passed_params['num_training_repeats']
     else:
@@ -120,7 +137,7 @@ def main(passed_params = {None}):
     if 'rx_blacklist' in passed_params:
         rx_blacklist = passed_params['rx_blacklist']
     else:
-        rx_blacklist = None
+        rx_blacklist = [None]
     if 'func_list' in passed_params:
         func_list = passed_params['func_list']
     else:
@@ -134,12 +151,12 @@ def main(passed_params = {None}):
     global dataset_index
     global meter_scale
     cmd_line_params = []
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--param_selector", type=int, default=-1, help='Index of pair for selecting params')
-    parser.add_argument("--random_ind", type=int, default=-1, help='Random Int for selecting set of params')
-    args = parser.parse_args()
+    # parser = argparse.ArgumentParser()
+    # parser.add_argument("--param_selector", type=int, default=-1, help='Index of pair for selecting params')
+    # parser.add_argument("--random_ind", type=int, default=-1, help='Random Int for selecting set of params')
+    # args = parser.parse_args()
 
-    all_results = []
+    all_results = {rx_blacklist[0] : []}
 
     # select the chosen loss_functions:
     loss_funcs = []
@@ -157,12 +174,12 @@ def main(passed_params = {None}):
                 for loss_func in loss_funcs:
                     cmd_line_params.append([di, split, random_state, loss_func])
 
-    if args.param_selector > -1:
-        param_list = [cmd_line_params[args.param_selector]]
-    elif args.random_ind > -1:
-        param_list = [param for param in cmd_line_params if param[3] == args.random_ind]
-    else:
-        param_list = cmd_line_params
+    # if args.param_selector > -1:
+    #     param_list = [cmd_line_params[args.param_selector]]
+    # elif args.random_ind > -1:
+    #     param_list = [param for param in cmd_line_params if param[3] == args.random_ind]
+    # else:
+    param_list = cmd_line_params
 
     for ind, param_set in enumerate(param_list):
         dataset_index, split, random_state, loss_func = param_set
@@ -207,8 +224,11 @@ def main(passed_params = {None}):
             #********************* this is the important part ******************************
             print(key, results['err'][key].mean())
             if results_type == "remove_one" and "_test" in key:
-                result_row = param_set + [key]
-                all_results.append(result_row)
+                tmp = param_set
+                tmp[-1] = str(tmp[-1]) # convert obj to string so it can be serializable
+                result_row = tmp + [key] + [str(results['err'][key].mean())] # float->str so it's serializable
+                all_results[rx_blacklist[0]].append(result_row)
+                # only the test values, not train/train_val/2test_extra
 
     return all_results # return main()
 
@@ -265,5 +285,5 @@ def get_results(filename: str, dlloc: DLLocalization, rldataset: RSSLocDataset):
 
 
 if __name__ == '__main__':
-    params = {"max_num_epochs": 20, "num_training_repeats": 1, "batch_size": 64,}
-    main()
+    #params = {"max_num_epochs": 20, "num_training_repeats": 1, "batch_size": 64,}
+    main_process()

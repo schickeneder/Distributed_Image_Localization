@@ -82,10 +82,8 @@ def remove_one2():
 
     task1 = celery.signature("tasks.get_rx_lats",args=[params],options={"queue":"GPU_queue"})
     task2 = celery.signature('tasks.split_and_group',options={"queue":"GPU_queue"})
-    task3 = celery.signature('tasks.process_remove_one_results',options={"queue":"GPU_queue"})
-    workflow = chain(task1,task2)
 
-    result = workflow.apply_async()
+    result = chain(task1,task2).apply_async()
 
     return f'workflow result: {result}'
 

@@ -15,19 +15,6 @@ def make_celery():
     print("making celery worker")
     return celery
 
-
-# SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-# sys.path.append(os.path.dirname(SCRIPT_DIR))
-
-#sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
-
-#sys.path.append(os.path.join(os.path.dirname(__file__), 'dl_img_loc_lite'))
-
-# new_path = os.path.join(os.getcwd(),'dl_img_loc_lite')
-# sys.path.append(new_path)
-#os.chdir('dl_img_loc_lite')
-
-
 celery = make_celery()
 
 @celery.task(name='tasks.add_together')
@@ -54,30 +41,33 @@ def helium_train(data):
     time.sleep(random.randrange(0,15))
     return data
 
+# Retrieves the list of rx_lats for all nodes in the dataset specified in params
+# Populates rx_blacklist with this list for use in subsequent functions
 @celery.task (name='tasks.get_rx_lats')
 def get_rx_lats_task(params):
-    rx_lats = (helium_training.get_rx_lats(params))
+    rx_lats = helium_training.get_rx_lats(params)
     print(f"****args for task.get_rx_lats: {params}")
-    #rx_lats = [1,2,3]
-    return rx_lats
+    return {**params,"rx_blacklist": rx_lats} # keep them there for purposes of passing args
 
 @celery.task(name='tasks.split_and_group')
-def split_and_group_rx_lats(rx_lats):
-    print(f"****args for tasks.split_and_group_rx_lats: {rx_lats}")
-    g = group(group_remove_one2.s(rx_lat).set(queue="GPU_queue") for rx_lat in rx_lats[:3])
-    #res = g()
+def split_and_group_rx_lats(params):
+    print(f"****args for tasks.split_and_group_rx_lats: {params['rx_blacklist']}")
+    # create a group of tasks with each one being passed one of the rx_lats as the only member of rx_blacklist
+    g = group(group_remove_one2.s({**params,"rx_blacklist" : [rx_lat]}).
+              set(queue="GPU_queue") for rx_lat in params["rx_blacklist"][:3]) # TODO: eventually get rid of [:3]
     res = chord(g)(process_remove_one_results.s().set(queue="GPU_queue"))
-    print(f" res {res} ")
-    return 2
+    # No need to return anything because chord callback (process_remove_one_results) will when parallel tasks complete
+    return "completed split_and_group_rx_lats"
 
 @celery.task(name='tasks.group_remove_one2')
 def group_remove_one2(params):
     print(f"****args for tasks.group_remove_one2: {params}")
-    time.sleep(random.randrange(0,15))
-    return params+1
+    res = helium_training.main_process(params)
+    #time.sleep(random.randrange(0,15))
+    return res
 
 @celery.task(name='tasks.process_remove_one_results')
 def process_remove_one_results(params):
     print(f"****args for tasks.process_remove_one_results: {params}")
-    return f"all done"
+    return params
 

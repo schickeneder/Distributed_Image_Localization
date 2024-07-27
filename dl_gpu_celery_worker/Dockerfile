@@ -10,4 +10,4 @@ RUN pip install -r requirements.txt
 
 COPY .. .
 
-CMD ["celery", "-A", "celery_worker.celery", "worker", "--loglevel=info","-Q","GPU_queue"]
+CMD ["celery", "-A", "celery_worker.celery", "worker", "--loglevel=debug","-Q","GPU_queue"]
