@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Map with Drawing Tools</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-draw/dist/leaflet.draw.css" />
+    <style>
+        #map {
+            height: 600px;
+        }
+    </style>
+</head>
+<body>
+    <div id="map"></div>
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet-draw/dist/leaflet.draw.js"></script>
+
+    <script>
+        // Function to initialize the map
+        function initMap(lat, lon) {
+            var map = L.map('map').setView([lat, lon], 5);
+
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                maxZoom: 19,
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+            }).addTo(map);
+
+            var drawnItems = new L.FeatureGroup();
+            map.addLayer(drawnItems);
+
+            var drawControl = new L.Control.Draw({
+                draw: {
+                    polygon: false,
+                    polyline: false,
+                    circle: false,
+                    marker: false,
+                    circlemarker: false,
+                    rectangle: {
+                        shapeOptions: {
+                            clickable: true
+                        }
+                    }
+                },
+                edit: {
+                    featureGroup: drawnItems
+                }
+            });
+            map.addControl(drawControl);
+
+            map.on(L.Draw.Event.CREATED, function(event) {
+                var layer = event.layer;
+                drawnItems.addLayer(layer);
+                if (event.layerType === 'rectangle') {
+                    var bounds = layer.getBounds();
+                    var northWest = bounds.getNorthWest();
+                    var northEast = bounds.getNorthEast();
+                    var southWest = bounds.getSouthWest();
+                    var southEast = bounds.getSouthEast();
+                    console.log("NorthWest: " + northWest);
+                    console.log("NorthEast: " + northEast);
+                    console.log("SouthWest: " + southWest);
+                    console.log("SouthEast: " + southEast);
+                }
+            });
+        }
+
+        // Check if geolocation is available
+        if ("geolocation" in navigator) {
+            navigator.geolocation.getCurrentPosition(
+                function(position) {
+                    // Success callback
+                    var lat = position.coords.latitude;
+                    var lon = position.coords.longitude;
+                    initMap(lat, lon);
+                },
+                function(error) {
+                    // Error callback
+                    console.error("Error Code = " + error.code + " - " + error.message);
+                    // Default location if user denies geolocation or an error occurs
+                    initMap(39.88, -98.43); // Default to London
+                }
+            );
+        } else {
+            // Default location if geolocation is not available
+            initMap(39.88, -98.43); // Default to London
+        }
+    </script>
+</body>
+</html>

@@ -134,6 +134,13 @@ def tasks():
 
     return render_template('tasks.html', tasks=tasks)
 
+@app.route('/interactive_map')
+def interactive_map():
+
+
+    return render_template('interactive_map.html')
+
+
 @celery.task(name='tasks.add_together')
 def add_together(a, b):
     return a + b
