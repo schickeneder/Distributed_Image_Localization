@@ -76,8 +76,8 @@ def remove_one():
 @app.route('/remove_one2')
 def remove_one2():
 
-    params = {"max_num_epochs": 2, "num_training_repeats": 1, "batch_size": 64, "rx_blacklist": [],
-              'func_list': ["MSE"], "data_filename": "datasets/helium_SD/filtered_Seattle_data.csv",
+    params = {"max_num_epochs": 10, "num_training_repeats": 1, "batch_size": 64, "rx_blacklist": [],
+              'func_list': ["MSE","COM"], "data_filename": "datasets/helium_SD/filtered_Seattle_data.csv",
               "results_type": "remove_one"}
 
     task1 = celery.signature("tasks.get_rx_lats",args=[params],options={"queue":"GPU_queue"})

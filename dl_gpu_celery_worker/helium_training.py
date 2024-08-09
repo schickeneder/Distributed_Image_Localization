@@ -117,7 +117,7 @@ def main_process(passed_params = {None}):
     if 'rx_blacklist' in passed_params:
         rx_blacklist = passed_params['rx_blacklist']
     else:
-        rx_blacklist = [None]
+        rx_blacklist = ["None"]
     if 'func_list' in passed_params:
         func_list = passed_params['func_list']
     else:
@@ -136,7 +136,10 @@ def main_process(passed_params = {None}):
     # parser.add_argument("--random_ind", type=int, default=-1, help='Random Int for selecting set of params')
     # args = parser.parse_args()
 
-    all_results = {rx_blacklist[0] : []}
+    if "results_type":
+        all_results = {rx_blacklist[0] : []} # [0] because when we split it up there will only be one element here
+        # for default results type it will just be "None" for the key
+
 
     # select the chosen loss_functions:
     loss_funcs = []
@@ -176,8 +179,8 @@ def main_process(passed_params = {None}):
         }
         params = LocConfig(**dict_params)  # sets up parameters, also some unique defaults depending on the dataset
 
-        loss_label = 'com' if isinstance(loss_func, CoMLoss) else 'mse' if isinstance(loss_func,
-                    torch.nn.MSELoss) else 'emd' if isinstance(loss_func, SlicedEarthMoversDistance) else 'unknown'
+        loss_label = "com" if isinstance(loss_func, CoMLoss) else "mse" if isinstance(loss_func,
+                    torch.nn.MSELoss) else "emd" if isinstance(loss_func, SlicedEarthMoversDistance) else "unknown"
         param_string = f"{params}_{loss_label}"
         modified_param_string = param_string.replace(':', '-')  # added this fix for Win file systems compat.
         print(f"parameter string {modified_param_string}")
@@ -209,7 +212,14 @@ def main_process(passed_params = {None}):
                 result_row = tmp + [key] + [str(results['err'][key].mean())] # float->str so it's serializable
                 all_results[rx_blacklist[0]].append(result_row)
                 # only the test values, not train/train_val/2test_extra
+            else:
+                if results_type == "default": # record all the error types
+                    tmp = param_set
+                    tmp[-1] = str(tmp[-1])  # convert obj to string so it can be serializable
+                    result_row = tmp + [key] + [str(results['err'][key].mean())]  # float->str so it's serializable
+                    all_results[rx_blacklist[0]].append(result_row)
 
+    # TODO maybe make this a json.dump string?
     return all_results # return main()
 
 
