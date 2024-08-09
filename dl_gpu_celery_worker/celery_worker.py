@@ -54,7 +54,7 @@ def split_and_group_rx_lats(params):
     print(f"****args for tasks.split_and_group_rx_lats: {params['rx_blacklist']}")
     # create a group of tasks with each one being passed one of the rx_lats as the only member of rx_blacklist
     g = group(group_remove_one2.s({**params,"rx_blacklist" : [rx_lat]}).
-              set(queue="GPU_queue") for rx_lat in params["rx_blacklist"][:3]) # TODO: eventually get rid of [:3]
+              set(queue="GPU_queue") for rx_lat in params["rx_blacklist"])
     res = chord(g)(process_remove_one_results.s().set(queue="GPU_queue"))
     # No need to return anything because chord callback (process_remove_one_results) will when parallel tasks complete
     return "completed split_and_group_rx_lats"
