@@ -1111,6 +1111,9 @@ class RSSLocDataset():
                 for key, name in zip(used_ids, location_names):
                     self.location_index_dict[ used_ids[key]] = name
         elif self.params.dataset_index == 9: # helium_SD dataset
+            # ds9 like:
+            # time,lat1,lon1,lat2,lon2,txpwr,rxpwr
+            # 1718303957,37.807952880859375,-122.367424,37.75294834886223,-122.4287369,,-117
             for data_file in self.data_files:
                 # with open(data_file, 'r') as f:
                 #     print(f)
@@ -1191,10 +1194,19 @@ class RSSLocDataset():
                      '47.58902400026363', '47.58944644884187', '47.59340963652312', '47.59864847808752',
                      '47.60566438533686', '47.60595473978473', '47.60637337907797', '47.609964745154365'] #10th
 
+                    # skip if rx_lat is in the blacklist
                     if self.params.rx_blacklist:
                         if str(rx_lat) in self.params.rx_blacklist:
                             #print(f"Skipping RX node {rx_lat}")
                             continue
+
+                    # skip if timestamp is outside of timespan; expecting either int or (int,int)
+                    if not isinstance(self.params.timespan,int) and \
+                            (int(columns[0]) < self.params.timespan[0] or int(columns[0]) > self.params.timespan[1]):
+                        continue
+                    elif int(columns[0]) < self.params.timespan:
+                        continue
+
 
                     # if str(rx_lat) in rx_blacklist: # skip this RX
                     #     #print(f"Skipping RX node {rx_lat}")

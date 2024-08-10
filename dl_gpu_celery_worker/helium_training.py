@@ -126,6 +126,10 @@ def main_process(passed_params = {None}):
         results_type = passed_params['results_type']
     else:
         results_type = "default"
+    if 'timespan' in passed_params:
+        timespan = passed_params['timespan'] # should be tuple like (1718303982,1800000000) or single int 1718303982
+    else:
+        timespan = 0 # use all samples newer than 0 (i.e. use all)
 
 
     global dataset_index
@@ -176,6 +180,7 @@ def main_process(passed_params = {None}):
             # "data_format": data_format,
             "data_filename": data_filename,
             "rx_blacklist": rx_blacklist,
+            "timespan":timespan,
         }
         params = LocConfig(**dict_params)  # sets up parameters, also some unique defaults depending on the dataset
 

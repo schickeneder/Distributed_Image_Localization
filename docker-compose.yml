@@ -61,7 +61,7 @@ services:
 
   dl_gpu_celery_worker:
     container_name: dl_gpu
-    image: pytorch/manylinux-cuda124
+    image: pytorch/pytorch
     build:
       context: ./dl_gpu_celery_worker
     #command: nvidia-smi
