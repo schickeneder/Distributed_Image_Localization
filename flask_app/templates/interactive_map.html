@@ -3,257 +3,333 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Map with Form, Dropdown, and Status Box</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
     <link rel="stylesheet" href="https://unpkg.com/leaflet-draw/dist/leaflet.draw.css" />
+    <title>Training Parameters Form</title>
     <style>
         body {
             font-family: Arial, sans-serif;
-            background-color: #f2f2f2;
-            margin: 0;
+            background-color: #f4f4f4;
             padding: 20px;
-            display: flex;
-            flex-direction: column;
-            height: 100vh;
         }
-        .top-container {
-            display: flex;
-            flex-direction: row;
-            flex-grow: 1;
-            margin-bottom: 10px;
-        }
-        .form-container {
-            background-color: #fff;
+
+        .container {
+            max-width: 320px;
+            margin: 0 auto;
+            background: white;
             padding: 20px;
             border-radius: 8px;
             box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-            max-width: 400px;
-            margin-right: 20px;
-            flex-shrink: 0;
+        }
+
+        .main-container {
             display: flex;
-            flex-direction: column;
-            height: 100%;
-            overflow-y: auto;
+            gap: 1px; /* Space between form and additional container */
+            justify-content: flex-start;
         }
-        .form-container h2 {
-            margin-top: 0;
+
+        .additional-container {
+            width: 1000px;
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
         }
+
+        h1 {
+            text-align: center;
+            color: #333;
+        }
+
+        label {
+            display: block;
+            margin-top: 10px;
+            color: #555;
+        }
+
+        input[type="text"],
+        input[type="number"],
+        select {
+            width: 100%;
+            max-width: 300px; /* Limit the width of input fields */
+            padding: 10px;
+            margin-top: 5px;
+            border-radius: 4px;
+            border: 1px solid #ccc;
+        }
+
         .form-group {
             margin-bottom: 15px;
+            max-width: 320px;
         }
-        .form-group label {
+
+        .form-group-inline {
+            display: flex;
+            flex-wrap: wrap; /* Ensure wrapping on smaller screens */
+            gap: 10px; /* Add spacing between inline elements */
+        }
+
+        /* Adjust the width for inline elements */
+        .form-group-inline input,
+        .form-group-inline .form-group {
+            width: calc(60%); /* Ensure they share the same row */
+            max-width: 180px; /* Remove previous width restriction */
+        }
+
+        button {
             display: block;
-            margin-bottom: 5px;
-        }
-        .form-group input {
             width: 100%;
-            padding: 8px;
-            box-sizing: border-box;
-            border: 1px solid #ccc;
-            border-radius: 4px;
-        }
-        .form-group button {
-            background-color: #4CAF50;
+            padding: 10px;
+            background-color: #007BFF;
             color: white;
-            padding: 10px 15px;
             border: none;
             border-radius: 4px;
+            font-size: 16px;
             cursor: pointer;
+            margin-top: 20px;
+            max-width: 320px;
         }
-        .form-group button:hover {
-            background-color: #45a049;
+
+        button:hover {
+            background-color: #0056b3;
         }
+
         #map {
             height: 100%;
             flex-grow: 1;
         }
-        #status-box {
-            width: 100%;
-            height: 100px;
-            box-sizing: border-box;
-            padding: 10px;
-            border: 1px solid #ccc;
-            border-radius: 4px;
-            resize: none;
-            overflow-y: auto;
-        }
     </style>
 </head>
 <body>
-    <div class="top-container">
-        <div class="form-container">
-            <h2>Input Form</h2>
-            <form id="dataForm">
+
+<div class="main-container">
+    <div class="container">
+        <h1>Submit Training Parameters</h1>
+        <form id="trainingForm">
+            <div class="form-group">
+                <label for="max_num_epochs">Max Num Epochs:</label>
+                <input type="number" id="max_num_epochs" name="max_num_epochs" value="10">
+            </div>
+
+            <div class="form-group">
+                <label for="num_training_repeats">Num Training Repeats:</label>
+                <input type="number" id="num_training_repeats" name="num_training_repeats" value="1">
+            </div>
+
+            <div class="form-group">
+                <label for="batch_size">Batch Size:</label>
+                <input type="number" id="batch_size" name="batch_size" value="64">
+            </div>
+
+            <div class="form-group">
+                <label for="rx_blacklist">Rx Blacklist (comma-separated):</label>
+                <input type="text" id="rx_blacklist" name="rx_blacklist" value="0">
+            </div>
+
+            <div class="form-group">
+                <label for="func_list">Func List (comma-separated):</label>
+                <input type="text" id="func_list" name="func_list" value="MSE,COM">
+            </div>
+
+            <div class="form-group">
+                <label for="data_filename">Data Filename:</label>
+                <input type="text" id="data_filename" name="data_filename" value="datasets/helium_SD/SF30_helium.csv">
+            </div>
+
+            <div class="form-group-inline">
                 <div class="form-group">
-                    <label for="latitude">Latitude:</label>
-                    <input type="text" id="latitude" name="latitude" value="37.7749">
+                    <label for="timespan_start">Timespan Start:</label>
+                    <input type="number" id="timespan_start" name="timespan_start" value="1675140329">
                 </div>
+
                 <div class="form-group">
-                    <label for="longitude">Longitude:</label>
-                    <input type="text" id="longitude" name="longitude" value="-122.4194">
+                    <label for="timespan_end">Timespan End:</label>
+                    <input type="number" id="timespan_end" name="timespan_end" value="1675352459">
                 </div>
-                <div class="form-group">
-                    <label for="integer1">Integer 1:</label>
-                    <input type="number" id="integer1" name="integer1" value="10">
-                </div>
-                <div class="form-group">
-                    <label for="integer2">Integer 2:</label>
-                    <input type="number" id="integer2" name="integer2" value="20">
-                </div>
-                <div class="form-group">
-                    <label for="text">Text:</label>
-                    <input type="text" id="text" name="text" value="Default String">
-                </div>
-                <div class="form-group">
-                    <label for="list">List (comma separated):</label>
-                    <input type="text" id="list" name="list" value="item1,item2,item3">
-                </div>
-                <div class="form-group">
-                    <button type="button" onclick="submitForm()">Submit</button>
-                </div>
-            </form>
-            <div>
-                <label for="file-dropdown">Choose a file:</label>
-                <select id="file-dropdown">
-                    {% for file in files %}
-                    <option value="{{ file }}">{{ file }}</option>
-                    {% endfor %}
+            </div>
+
+            <div class="form-group">
+                <label for="results_type">Results Type:</label>
+                <select id="results_type" name="results_type" style="min-width: 320px">
+                    <option value="default">Default</option>
+                    <option value="remove_one">Remove One</option>
                 </select>
             </div>
-        </div>
+
+            <div class="form-group-inline">
+                <div class="form-group">
+                    <label for="coordinates_1">Coordinates 1 (lat,lng):</label>
+                    <input type="text" id="coordinates_1" name="coordinates_1" value="37.610424,-122.531204">
+                </div>
+
+                <div class="form-group">
+                    <label for="coordinates_2">Coordinates 2 (lat,lng):</label>
+                    <input type="text" id="coordinates_2" name="coordinates_2" value="37.808156,-122.336884">
+                </div>
+            </div>
+
+            <button type="submit">Submit</button>
+        </form>
+    </div>
+
+    <div class="additional-container">
         <div id="map"></div>
     </div>
-    <textarea id="status-box" readonly></textarea>
-    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-    <script src="https://unpkg.com/leaflet-draw/dist/leaflet.draw.js"></script>
-    <script>
-        function submitForm() {
-            const formData = {
-                latitude: document.getElementById('latitude').value,
-                longitude: document.getElementById('longitude').value,
-                integer1: parseInt(document.getElementById('integer1').value),
-                integer2: parseInt(document.getElementById('integer2').value),
-                text: document.getElementById('text').value,
-                list: document.getElementById('list').value.split(',')
-            };
 
-            fetch('/submit', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(formData)
-            })
-            .then(response => response.json())
-            .then(data => updateStatusBox('Success: ' + JSON.stringify(data)))
-            .catch((error) => updateStatusBox('Error: ' + error));
-        }
+</div>
 
-        function initMap(lat, lon) {
-            var map = L.map('map').setView([lat, lon], 5);
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet-draw/dist/leaflet.draw.js"></script>
+<script>
+    document.getElementById('trainingForm').addEventListener('submit', function(event) {
+        event.preventDefault();
 
-            // Add a custom tile layer
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                maxZoom: 19,
-                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-            }).addTo(map);
+        // Collecting form data
+        const formData = {
+            max_num_epochs: parseInt(document.getElementById('max_num_epochs').value),
+            num_training_repeats: parseInt(document.getElementById('num_training_repeats').value),
+            batch_size: parseInt(document.getElementById('batch_size').value),
+            rx_blacklist: document.getElementById('rx_blacklist').value.split(',').map(Number),
+            func_list: document.getElementById('func_list').value.split(','),
+            data_filename: document.getElementById('data_filename').value,
+            timespan: [
+                parseInt(document.getElementById('timespan_start').value),
+                parseInt(document.getElementById('timespan_end').value)
+            ],
+            results_type: document.getElementById('results_type').value,
+            coordinates: [
+                document.getElementById('coordinates_1').value.split(',').map(Number),
+                document.getElementById('coordinates_2').value.split(',').map(Number)
+            ]
+        };
 
-            var drawnItems = new L.FeatureGroup();
-            map.addLayer(drawnItems);
+        console.log('Form Data:', formData);
 
-            var drawControl = new L.Control.Draw({
-                draw: {
-                    polygon: false,
-                    polyline: false,
-                    circle: false,
-                    marker: false,
-                    circlemarker: false,
-                    rectangle: {
-                        shapeOptions: {
-                            color: '#000',
-                            weight: 2,
-                            opacity: 1,
-                            fill: false,
-                            clickable: true
-                        }
+        // Sending data as JSON in a POST request
+        fetch('http://example.com/submit', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(formData)
+        })
+        .then(response => response.json())
+        .then(data => {
+            console.log('Success:', data);
+        })
+        .catch((error) => {
+            console.error('Error:', error);
+        });
+    });
+
+</script>
+<script>
+    function initMap(lat, lon) {
+        var map = L.map('map').setView([lat, lon], 5);
+
+        // Add a custom tile layer
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        }).addTo(map);
+
+        var drawnItems = new L.FeatureGroup();
+        map.addLayer(drawnItems);
+
+        var drawControl = new L.Control.Draw({
+            draw: {
+                polygon: false,
+                polyline: false,
+                circle: false,
+                marker: false,
+                circlemarker: false,
+                rectangle: {
+                    shapeOptions: {
+                        color: '#000',
+                        weight: 2,
+                        opacity: 1,
+                        fill: false,
+                        clickable: true
                     }
-                },
-                edit: {
-                    featureGroup: drawnItems
                 }
-            });
-            map.addControl(drawControl);
+            },
+            edit: {
+                featureGroup: drawnItems
+            }
+        });
+        map.addControl(drawControl);
 
-            map.on(L.Draw.Event.CREATED, function(event) {
-                var layer = event.layer;
-                drawnItems.addLayer(layer);
-                if (event.layerType === 'rectangle') {
+        map.on(L.Draw.Event.CREATED, function(event) {
+            var layer = event.layer;
+            drawnItems.addLayer(layer);
+            if (event.layerType === 'rectangle') {
+                updateRectangleStatus(layer);
+            }
+        });
+
+
+        // not sure why this isn't working..
+        map.on('draw:edited', function(event) {
+            var layers = event.layers;
+            layers.eachLayer(function(layer) {
                     updateRectangleStatus(layer);
-                }
             });
+        });
 
 
-            // not sure why this isn't working..
-            map.on('draw:edited', function(event) {
-                var layers = event.layers;
-                layers.eachLayer(function(layer) {
-                        updateRectangleStatus(layer);
-                });
-            });
+        // map.on('draw:editmove', function(event) {
+        //     var layers = event.layers;
+        //     layers.eachLayer(function(layer) {
+        //         if (layer instanceof L.Rectangle) {
+        //             updateRectangleStatus(layer);
+        //         }
+        //     });
+        // });
+    }
 
+    function updateRectangleStatus(rectangle) {
+        var bounds = rectangle.getBounds();
+        var northWest = bounds.getNorthWest();
+        var northEast = bounds.getNorthEast();
+        var southWest = bounds.getSouthWest();
+        var southEast = bounds.getSouthEast();
+        var center = bounds.getCenter();
 
-            // map.on('draw:editmove', function(event) {
-            //     var layers = event.layers;
-            //     layers.eachLayer(function(layer) {
-            //         if (layer instanceof L.Rectangle) {
-            //             updateRectangleStatus(layer);
-            //         }
-            //     });
-            // });
-        }
+        updateStatusBox("Rectangle:");
+        updateStatusBox("NorthWest: " + northWest);
+        updateStatusBox("NorthEast: " + northEast);
+        updateStatusBox("SouthWest: " + southWest);
+        updateStatusBox("SouthEast: " + southEast);
+        updateStatusBox("Center: " + center);
+    }
 
-        function updateRectangleStatus(rectangle) {
-            var bounds = rectangle.getBounds();
-            var northWest = bounds.getNorthWest();
-            var northEast = bounds.getNorthEast();
-            var southWest = bounds.getSouthWest();
-            var southEast = bounds.getSouthEast();
-            var center = bounds.getCenter();
+    function updateStatusBox(message) {
+        var statusBox = document.getElementById('status-box');
+        statusBox.value += message + '\n';
+        statusBox.scrollTop = statusBox.scrollHeight;
+    }
 
-            updateStatusBox("Rectangle:");
-            updateStatusBox("NorthWest: " + northWest);
-            updateStatusBox("NorthEast: " + northEast);
-            updateStatusBox("SouthWest: " + southWest);
-            updateStatusBox("SouthEast: " + southEast);
-            updateStatusBox("Center: " + center);
-        }
+    // Check if geolocation is available
+    if ("geolocation" in navigator) {
+        navigator.geolocation.getCurrentPosition(
+            function(position) {
+                // Success callback
+                var lat = position.coords.latitude;
+                var lon = position.coords.longitude;
+                initMap(lat, lon);
+            },
+            function(error) {
+                // Error callback
+                console.error("Error Code = " + error.code + " - " + error.message);
+                // Default location if user denies geolocation or an error occurs
+                initMap(39.88, -98.43); // Default to a central location
+            }
+        );
+    } else {
+        // Default location if geolocation is not available
+        initMap(39.88, -98.43); // Default to a central location
+    }
+</script>
 
-        function updateStatusBox(message) {
-            var statusBox = document.getElementById('status-box');
-            statusBox.value += message + '\n';
-            statusBox.scrollTop = statusBox.scrollHeight;
-        }
-
-        // Check if geolocation is available
-        if ("geolocation" in navigator) {
-            navigator.geolocation.getCurrentPosition(
-                function(position) {
-                    // Success callback
-                    var lat = position.coords.latitude;
-                    var lon = position.coords.longitude;
-                    initMap(lat, lon);
-                },
-                function(error) {
-                    // Error callback
-                    console.error("Error Code = " + error.code + " - " + error.message);
-                    // Default location if user denies geolocation or an error occurs
-                    initMap(39.88, -98.43); // Default to a central location
-                }
-            );
-        } else {
-            // Default location if geolocation is not available
-            initMap(39.88, -98.43); // Default to a central location
-        }
-    </script>
 </body>
 </html>

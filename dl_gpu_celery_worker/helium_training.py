@@ -37,6 +37,11 @@ def get_rx_lats(passed_params = {None}):
         print(f"WARNING: No coordinates specified in passed_params, using defaults")
         coordinates = HELIUMSD_LATLON
 
+    if 'timespan' in passed_params:
+        timespan = passed_params['timespan'] # should be tuple like (1718303982,1800000000) or single int 1718303982
+    else:
+        timespan = 0 # use all samples newer than 0 (i.e. use all)
+
     with open(file_path, newline='') as csvfile:
         csvreader = csv.reader(csvfile)
 
@@ -60,6 +65,14 @@ def get_rx_lats(passed_params = {None}):
                 else:
                     #print(f"row {row} is not between {coordinates}")
                     continue
+
+                # # skip if timestamp is outside of timespan; expecting either int or (int,int)
+                if isinstance(timespan, int):
+                    if int(row[0]) < timespan:
+                        continue
+                else:
+                    if int(row[0]) < timespan[0] or int(row[0]) > timespan[1]:
+                        continue
 
                 rx_lats.add(rx_lat)
 

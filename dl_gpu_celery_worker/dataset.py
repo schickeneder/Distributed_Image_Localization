@@ -1201,11 +1201,13 @@ class RSSLocDataset():
                             continue
 
                     # skip if timestamp is outside of timespan; expecting either int or (int,int)
-                    if not isinstance(self.params.timespan,int) and \
-                            (int(columns[0]) < self.params.timespan[0] or int(columns[0]) > self.params.timespan[1]):
-                        continue
-                    elif int(columns[0]) < self.params.timespan:
-                        continue
+                    # also did this in get_rx_lats
+                    if isinstance(self.params.timespan,int):
+                        if int(columns[0]) < self.params.timespan:
+                            continue
+                    else:
+                        if int(columns[0]) < self.params.timespan[0] or int(columns[0]) > self.params.timespan[1]:
+                            continue
 
 
                     # if str(rx_lat) in rx_blacklist: # skip this RX
@@ -1242,6 +1244,7 @@ class RSSLocDataset():
 
                     data_list.append( [tx_locs, rx_tups, tx_gains] )
 
+                print(f"data_list length is {len(data_list)}")
                 # consolidate RX measurements per receiver instead of line by line
                 data_list = consolidate_data(data_list, precision = 2)
 

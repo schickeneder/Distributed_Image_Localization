@@ -82,10 +82,12 @@ def remove_one2():
 
     # SF dataset spans from Aug 2017 to April 2024, but mostly from 1635890982 11/2/21 to 1681831899 4/18/23
     # choose about halfway through: 1654394803 6/5/22
+    # that was too much, so now we choose from 1671622676 12/21/22 1675273138
 
     params = {"max_num_epochs": 10, "num_training_repeats": 1, "batch_size": 64, "rx_blacklist": [0],
-              'func_list': ["MSE","COM"], "data_filename": "datasets/helium_SD/SF30_helium.csv", "timespan": 1654394803,
-              "results_type": "remove_one", "coordinates" : [(37.610424, -122.531204),(37.808156, -122.336884)]}
+              'func_list': ["MSE","COM"], "data_filename": "datasets/helium_SD/SF30_helium.csv",
+              "timespan": 1675273138, "results_type": "remove_one",
+              "coordinates" : [(37.610424, -122.531204),(37.808156, -122.336884)]}
 
     # params = {"max_num_epochs": 10, "num_training_repeats": 1, "batch_size": 64, "rx_blacklist": [0],
     #           'func_list': ["MSE","COM"], "data_filename": "datasets/helium_SD/SEA30_helium.csv",
