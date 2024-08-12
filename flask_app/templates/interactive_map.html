@@ -11,10 +11,26 @@
             font-family: Arial, sans-serif;
             background-color: #f4f4f4;
             padding: 20px;
+            position: relative;
+
         }
 
-        .container {
-            max-width: 320px;
+        .outer-container {
+            display: flex;
+            flex-direction: column;
+            gap: 20px; /* Space between form and additional container */
+            align-items: center;
+        }
+
+        .main-container {
+            position: absolute;
+            display: flex;
+            gap: 20px; /* Space between form and additional container */
+            justify-content: flex-start;
+        }
+
+        .form-container {
+            max-width: 330px;
             margin: 0 auto;
             background: white;
             padding: 20px;
@@ -22,17 +38,22 @@
             box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
         }
 
-        .main-container {
-            display: flex;
-            gap: 1px; /* Space between form and additional container */
-            justify-content: flex-start;
-        }
-
-        .additional-container {
+        .map-container {
             width: 1000px;
             background: #fff;
             padding: 20px;
             border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .bottom-container {
+            position:absolute;
+            margin: 15px auto 0; /* Top margin to create space between the side-by-side containers and this container */
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            top: 760px;
+            width: 1390px;
             box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
         }
 
@@ -59,8 +80,13 @@
         }
 
         .form-group {
-            margin-bottom: 15px;
+            margin-bottom: 5px;
             max-width: 320px;
+        }
+
+        .filter-group{ /* timespans and coordinate boundaries */
+            margin-bottom: 5px;
+            max-width: 160px;
         }
 
         .form-group-inline {
@@ -72,8 +98,8 @@
         /* Adjust the width for inline elements */
         .form-group-inline input,
         .form-group-inline .form-group {
-            width: calc(60%); /* Ensure they share the same row */
-            max-width: 180px; /* Remove previous width restriction */
+            width: calc(70%); /* Ensure they share the same row */
+            max-width: 170px; /* Remove previous width restriction */
         }
 
         button {
@@ -98,85 +124,111 @@
             height: 100%;
             flex-grow: 1;
         }
+
+        #status-box {
+            width: 100%;
+            height: 200px;
+            box-sizing: border-box;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            resize: none;
+            overflow-y: auto;
+        }
+
     </style>
 </head>
 <body>
 
-<div class="main-container">
-    <div class="container">
-        <h1>Submit Training Parameters</h1>
-        <form id="trainingForm">
-            <div class="form-group">
-                <label for="max_num_epochs">Max Num Epochs:</label>
-                <input type="number" id="max_num_epochs" name="max_num_epochs" value="10">
-            </div>
+<div class="outer-container">
+    <div class="main-container">
+        <div class="form-container">
+            <h1>Submit Training Parameters</h1>
+            <form id="trainingForm">
 
-            <div class="form-group">
-                <label for="num_training_repeats">Num Training Repeats:</label>
-                <input type="number" id="num_training_repeats" name="num_training_repeats" value="1">
-            </div>
+                <div class="form-group-inline">
+                <div class="form-group" style="max-width: 103px">
+                    <label for="max_num_epochs">Max Epochs:</label>
+                    <input type="number" id="max_num_epochs" name="max_num_epochs" value="10">
+                </div>
 
-            <div class="form-group">
-                <label for="batch_size">Batch Size:</label>
-                <input type="number" id="batch_size" name="batch_size" value="64">
-            </div>
+                <div class="form-group" style="max-width: 103px">
+                    <label for="num_training_repeats">Repeats:</label>
+                    <input type="number" id="num_training_repeats" name="num_training_repeats" value="1">
+                </div>
 
-            <div class="form-group">
-                <label for="rx_blacklist">Rx Blacklist (comma-separated):</label>
-                <input type="text" id="rx_blacklist" name="rx_blacklist" value="0">
-            </div>
-
-            <div class="form-group">
-                <label for="func_list">Func List (comma-separated):</label>
-                <input type="text" id="func_list" name="func_list" value="MSE,COM">
-            </div>
-
-            <div class="form-group">
-                <label for="data_filename">Data Filename:</label>
-                <input type="text" id="data_filename" name="data_filename" value="datasets/helium_SD/SF30_helium.csv">
-            </div>
-
-            <div class="form-group-inline">
-                <div class="form-group">
-                    <label for="timespan_start">Timespan Start:</label>
-                    <input type="number" id="timespan_start" name="timespan_start" value="1675140329">
+                <div class="form-group" style="max-width: 103px">
+                    <label for="batch_size">Batch Size:</label>
+                    <input type="number" id="batch_size" name="batch_size" value="64">
+                </div>
                 </div>
 
                 <div class="form-group">
-                    <label for="timespan_end">Timespan End:</label>
-                    <input type="number" id="timespan_end" name="timespan_end" value="1675352459">
-                </div>
-            </div>
-
-            <div class="form-group">
-                <label for="results_type">Results Type:</label>
-                <select id="results_type" name="results_type" style="min-width: 320px">
-                    <option value="default">Default</option>
-                    <option value="remove_one">Remove One</option>
-                </select>
-            </div>
-
-            <div class="form-group-inline">
-                <div class="form-group">
-                    <label for="coordinates_1">Coordinates 1 (lat,lng):</label>
-                    <input type="text" id="coordinates_1" name="coordinates_1" value="37.610424,-122.531204">
+                    <label for="rx_blacklist">Rx Blacklist (comma-separated):</label>
+                    <input type="text" id="rx_blacklist" name="rx_blacklist" value="0">
                 </div>
 
                 <div class="form-group">
-                    <label for="coordinates_2">Coordinates 2 (lat,lng):</label>
-                    <input type="text" id="coordinates_2" name="coordinates_2" value="37.808156,-122.336884">
+                    <label for="func_list">Func List (comma-separated):</label>
+                    <input type="text" id="func_list" name="func_list" value="MSE,COM">
                 </div>
-            </div>
 
-            <button type="submit">Submit</button>
-        </form>
+                <div class="form-group">
+                    <label for="results_type">Results Type:</label>
+                    <select id="results_type" name="results_type" style="min-width: 320px">
+                        <option value="default">Default</option>
+                        <option value="remove_one">Remove One</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="data_filename">Data Filename:</label>
+                    <select id="data_filename" name="data_filename" style="min-width: 320px">
+                        <option value="datasets/helium_SD/SF30_helium.csv">datasets/helium_SD/SF30_helium.csv</option>
+                    </select>
+                </div>
+
+                <div class="form-group-inline">
+                    <div class="filter-group">
+                        <label for="timespan_start">Timespan Start:</label>
+                        <input type="number" id="timespan_start" name="timespan_start" value="1675140329">
+                    </div>
+
+                    <div class="filter-group">
+                        <label for="timespan_end">Timespan End:</label>
+                        <input type="number" id="timespan_end" name="timespan_end" value="1675352459">
+                    </div>
+                </div>
+
+
+
+                <div class="form-group-inline">
+                    <div class="filter-group">
+                        <label for="coordinates_1">SW (lat,lng):</label>
+                        <input type="text" id="coordinates_1" name="coordinates_1" value="37.610424,-122.531204">
+                    </div>
+
+                    <div class="filter-group">
+                        <label for="coordinates_2">NE (lat,lng):</label>
+                        <input type="text" id="coordinates_2" name="coordinates_2" value="37.808156,-122.336884">
+                    </div>
+                </div>
+
+                <button type="submit">Submit</button>
+            </form>
+        </div>
+
+        <div class="map-container">
+            <div id="map"></div>
+        </div>
     </div>
 
-    <div class="additional-container">
-        <div id="map"></div>
+    <div class="bottom-container">
+        <textarea id="status-box" readonly></textarea>
     </div>
 
 </div>
+
 
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 <script src="https://unpkg.com/leaflet-draw/dist/leaflet.draw.js"></script>
@@ -301,6 +353,16 @@
         updateStatusBox("SouthWest: " + southWest);
         updateStatusBox("SouthEast: " + southEast);
         updateStatusBox("Center: " + center);
+
+        updateCoords(southWest,northEast);
+    }
+
+    function updateCoords(southWest,northEast) {
+        var coords1 = document.getElementById("coordinates_1");
+        var coords2 = document.getElementById("coordinates_2");
+
+        coords1.value = `${southWest.lat}, ${southWest.lng}`;
+        coords2.value = `${northEast.lat}, ${northEast.lng}`;
     }
 
     function updateStatusBox(message) {
