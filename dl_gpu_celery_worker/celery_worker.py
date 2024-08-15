@@ -11,6 +11,7 @@ def make_celery():
         'celery_worker',
         backend=os.environ.get('REDIS_URL', 'redis://redis:6379/0'),
         broker=os.environ.get('REDIS_URL', 'redis://redis:6379/0'),
+        result_expires=0
     )
     print("making celery worker")
     return celery

@@ -15,6 +15,7 @@
 
         }
 
+
         .outer-container {
             display: flex;
             flex-direction: column;
@@ -48,6 +49,7 @@
 
         .bottom-container {
             position:absolute;
+            display:flex;
             margin: 15px auto 0; /* Top margin to create space between the side-by-side containers and this container */
             background: #fff;
             padding: 20px;
@@ -55,6 +57,28 @@
             top: 760px;
             width: 1390px;
             box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .redis-box{
+            width: 100px;
+            height: 50px;
+            border: 2px solid black;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            margin-right: 10px; /* Space between the boxes */
+        }
+
+        .text-box{
+            width: 100px;
+            height: 50px;
+            border: 2px solid black;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            margin-right: 10px; /* Space between the boxes */
         }
 
         h1 {
@@ -125,15 +149,31 @@
             flex-grow: 1;
         }
 
-        #status-box {
-            width: 100%;
+        #redis-status-Box {
+            width: 10%;
             height: 200px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            margin-right: 20px; /* Space between the boxes */
+            font-size: 24px;
+        }
+
+        #status-box {
+            width: 90%;
+            height: 202px;
             box-sizing: border-box;
             padding: 10px;
             border: 1px solid #ccc;
             border-radius: 4px;
             resize: none;
             overflow-y: auto;
+            display: flex;
+            font-size: 24px;
+            margin-right: 10px; /* Space between the boxes */
         }
 
     </style>
@@ -184,7 +224,7 @@
                 <div class="form-group">
                     <label for="data_filename">Data Filename:</label>
                     <select id="data_filename" name="data_filename" style="min-width: 320px">
-                        <option value="datasets/helium_SD/SF30_helium.csv">datasets/helium_SD/SF30_helium.csv</option>
+                        <!-- Options will be populated here -->
                     </select>
                 </div>
 
@@ -224,6 +264,8 @@
     </div>
 
     <div class="bottom-container">
+        <div id="redis-status-Box" >Loading...</div>
+
         <textarea id="status-box" readonly></textarea>
     </div>
 
@@ -391,6 +433,25 @@
         // Default location if geolocation is not available
         initMap(39.88, -98.43); // Default to a central location
     }
+
+    // to populate datsets dropdown
+    function datasetSelect(url) {
+    fetch(url)
+        .then(response => response.json())
+        .then(data => {
+            const select = document.getElementById('data_filename');
+            data.forEach(item => {
+                const option = document.createElement('option');
+                option.value = item;
+                option.text = item;
+                select.appendChild(option);
+            });
+        })
+        .catch(error => console.error('Error fetching data:', error));
+    }
+
+    datasetSelect('/data_files');
+
 </script>
 
 </body>

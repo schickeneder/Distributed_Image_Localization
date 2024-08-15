@@ -14,18 +14,20 @@ app.config['REDIS_HOST'] = os.environ.get('REDIS_HOST')
 app.config['REDIS_PASS'] = os.environ.get('REDIS_PASS')
 app.config['REDIS_STATE'] = os.environ.get('REDIS_STATE')
 app.config['GROUP_JOBS'] = {} # make a dict to support other metadata like start time
-
+app.config['CELERY_TTL'] = os.environ.get('CELERY_TTL')
 
 def make_celery(app):
     celery = Celery(
         app.import_name,
         backend=app.config['CELERY_RESULT_BACKEND'],
-        broker=app.config['CELERY_BROKER_URL']
+        broker=app.config['CELERY_BROKER_URL'],
+        result_expires=0
     )
     celery.conf.update(app.config)
     return celery
 
 celery = make_celery(app)
+
 if app.config['REDIS_STATE'] == "local": # mean it's being run locally
     redis_client = redis.Redis(host=app.config['REDIS_HOST'], port=6379, db=0,decode_responses=True)#,
                                  #username="default", password=app.config['REDIS_PASS'])
@@ -41,6 +43,16 @@ def hello_world():
 def longtask():
     task = add_together.delay(23, 42)
     return f'Task ID: {task.id}'
+
+@app.route('/data_files', methods=['GET'])
+def data_files():
+    res = [
+    "datasets/helium_SD/SF30_helium.csv",
+    "datasets/helium_SD/SF31_helium.csv",
+    "datasets/helium_SD/SF32_helium.csv"
+    ]
+
+    return jsonify(res)
 
 @app.route('/gputask')
 def gputask():
