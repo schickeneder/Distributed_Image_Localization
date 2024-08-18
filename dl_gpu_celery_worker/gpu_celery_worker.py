@@ -8,20 +8,22 @@ import helium_training
 
 def make_celery():
     celery = Celery(
-        'celery_worker',
+        'gpu_celery_worker',
         backend=os.environ.get('REDIS_URL', 'redis://redis:6379/0'),
         broker=os.environ.get('REDIS_URL', 'redis://redis:6379/0'),
-        result_expires=0
+        result_expires=0,
+        task_queues= {
+            'GPU_queue': {
+                'exchange': 'GPU_queue',
+                'exchange_type': 'direct',
+                'binding_key': 'GPU_queue',
+            }
+        }
     )
     print("making celery worker")
     return celery
 
 celery = make_celery()
-
-@celery.task(name='tasks.add_together')
-def add_together(a, b):
-    print("running add_together from celery_work tasks.py")
-    return a + b
 
 @celery.task(name='tasks.gpu_test')
 def gpu_test():
@@ -46,9 +48,16 @@ def helium_train(data):
 # Populates rx_blacklist with this list for use in subsequent functions
 @celery.task (name='tasks.get_rx_lats')
 def get_rx_lats_task(params):
-    rx_lats = helium_training.get_rx_lats(params)
+    rx_lats = helium_training.get_rx_lats(params) # TODO for debug, limit rx_lats to 3
     print(f"****args for task.get_rx_lats: {params}")
+    params['task_id'] = get_rx_lats_task.request.id
     return {**params,"rx_blacklist": rx_lats} # keep them there for purposes of passing args
+
+@celery.task(name='tasks.get_time_splits')
+def get_time_splits(params):
+    time_splits = helium_training.get_time_splits(params)
+    print(f"****args for tasks.get_time_splits: {params}")
+    return {**params,"splits": time_splits}
 
 @celery.task(name='tasks.split_and_group')
 def split_and_group_rx_lats(params):
@@ -58,7 +67,20 @@ def split_and_group_rx_lats(params):
               set(queue="GPU_queue") for rx_lat in params["rx_blacklist"])
     res = chord(g)(process_remove_one_results.s().set(queue="GPU_queue"))
     # No need to return anything because chord callback (process_remove_one_results) will when parallel tasks complete
-    return "completed split_and_group_rx_lats"
+    return {"results_type": "params", "data": params}
+
+@celery.task(name='tasks.split_and_group_timespan')
+def split_and_group_timespan(params):
+    print(f"****args for tasks.split_and_group_time_span: {params['splits']}")
+    # create a group of tasks with each one being passed one of the rx_lats as the only member of rx_blacklist
+    g = group(group_remove_one2.s({**params,"timespan" : timespan}).
+              set(queue="GPU_queue") for timespan in params["splits"])
+    res = chord(g)(process_remove_one_results.s().set(queue="GPU_queue"))
+    # No need to return anything because chord callback (process_remove_one_results) will when parallel tasks complete
+    return {"results_type": "params", "data": params}
+
+
+
 
 # Added acks_late so acknowledgement occurs after completion, with a time limit of 20 min
 # this will re-queue the task if a worker is interrupted (e.g. a vast machine is outbid and removed during processing)
@@ -69,8 +91,13 @@ def group_remove_one2(params):
     #time.sleep(random.randrange(0,15))
     return res
 
-@celery.task(name='tasks.process_remove_one_results')
-def process_remove_one_results(params):
-    print(f"****args for tasks.process_remove_one_results: {params}")
-    return params
+@celery.task(name='tasks.process_remove_one_results', acks_late=True)
+def process_remove_one_results(list_results):
+    print(f"****args for tasks.process_remove_one_results: {list_results}, logging results")
+    # can do whatever other processing we want with the results here, but we will also log them.
+    dict_results = {"results_type": "results", "data": list_results}
+    task1 = celery.signature("tasks.log_results", args=[dict_results], options={"queue": "log_queue"})
+    task1.apply_async()
+    # TODO: add the next task for all the percentiles results to get rx_blacklists
+    return dict_results
 

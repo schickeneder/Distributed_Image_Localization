@@ -14,14 +14,13 @@ app.config['REDIS_HOST'] = os.environ.get('REDIS_HOST')
 app.config['REDIS_PASS'] = os.environ.get('REDIS_PASS')
 app.config['REDIS_STATE'] = os.environ.get('REDIS_STATE')
 app.config['GROUP_JOBS'] = {} # make a dict to support other metadata like start time
-app.config['CELERY_TTL'] = os.environ.get('CELERY_TTL')
 
 def make_celery(app):
     celery = Celery(
         app.import_name,
         backend=app.config['CELERY_RESULT_BACKEND'],
         broker=app.config['CELERY_BROKER_URL'],
-        result_expires=0
+        result_expires=0,
     )
     celery.conf.update(app.config)
     return celery
@@ -60,6 +59,12 @@ def gputask():
     # If user will supply parameters from web interface, that will need to be processed here..
     return f'Task ID: {task.id}'
 
+@app.route('/logtask')
+def logtask():
+    task = log_test.delay() # right now it's GPU test but we can choose other tasks..
+    # If user will supply parameters from web interface, that will need to be processed here..
+    return f'Task ID: {task.id}'
+
 # @app.route('/remove_one')
 # def remove_one():
 #     results = []
@@ -88,30 +93,64 @@ def remove_one():
 @app.route('/remove_one2')
 def remove_one2():
 
-    # params = {"max_num_epochs": 10, "num_training_repeats": 1, "batch_size": 64, "rx_blacklist": [0],
-    #           'func_list': ["MSE","COM"], "data_filename": "datasets/helium_SD/SD30_helium.csv",
+    # # for test
+    # params = {"max_num_epochs": 1, "num_training_repeats": 1, "batch_size": 64, "rx_blacklist": [0],
+    #           'func_list': ["MSE"], "data_filename": "datasets/helium_SD/SD30_helium.csv",
+    #           "results_type": "remove_one", "coordinates" : [(32.732419, -117.247639),(32.796799, -117.160606)]}
+
+    # params = {"max_num_epochs": 20, "num_training_repeats": 1, "batch_size": 64, "rx_blacklist": [0],
+    #           'func_list': ["MSE","COM","EMD"], "data_filename": "datasets/helium_SD/SD30_driving.csv",
     #           "results_type": "remove_one", "coordinates" : [(32.732419, -117.247639),(32.796799, -117.160606)]}
 
     # SF dataset spans from Aug 2017 to April 2024, but mostly from 1635890982 11/2/21 to 1681831899 4/18/23
     # choose about halfway through: 1654394803 6/5/22
     # that was too much, so now we choose from 1671622676 12/21/22 1675273138
 
-    params = {"max_num_epochs": 10, "num_training_repeats": 1, "batch_size": 64, "rx_blacklist": [0],
-              'func_list': ["MSE","COM"], "data_filename": "datasets/helium_SD/SF30_helium.csv",
-              "timespan": 1675273138, "results_type": "remove_one",
-              "coordinates" : [(37.610424, -122.531204),(37.808156, -122.336884)]}
-
     # params = {"max_num_epochs": 10, "num_training_repeats": 1, "batch_size": 64, "rx_blacklist": [0],
-    #           'func_list': ["MSE","COM"], "data_filename": "datasets/helium_SD/SEA30_helium.csv",
-    #           "results_type": "remove_one", "coordinates" : [(47.556372, -122.360229), (47.63509, -122.281609)]}
+    #           'func_list': ["MSE","COM","EMD"], "data_filename": "datasets/helium_SD/SF30_helium.csv",
+    #           "timespan": 1675273138, "results_type": "remove_one",
+    #           "coordinates" : [(37.610424, -122.531204),(37.808156, -122.336884)]}
+
+    params = {"max_num_epochs": 20, "num_training_repeats": 1, "batch_size": 64, "rx_blacklist": [0],
+              'func_list': ["MSE","COM","EMD"], "data_filename": "datasets/helium_SD/SEA30_helium.csv",
+              "results_type": "remove_one", "coordinates" : [(47.556372, -122.360229), (47.63509, -122.281609)]}
 
 
 
     task1 = celery.signature("tasks.get_rx_lats",args=[params],options={"queue":"GPU_queue"})
-    task2 = celery.signature('tasks.split_and_group',options={"queue":"GPU_queue"})
+    task2 = celery.signature("tasks.split_and_group",options={"queue":"GPU_queue"})
+    task3 = celery.signature("tasks.log_results", options={"queue": "log_queue"})
 
-    result = chain(task1,task2).apply_async()
+    # this logs task_id but that actual results come through split_and_group task
 
+    result = chain(task1,task2,task3).apply_async()
+
+    print(result)
+    return f'workflow result: {result}'
+
+# This function trains models at different consecutive spans of time for one location
+# the purpose is to observe changes in performance due to nodes and protocols over time
+# For each model it will track the timespan tested and the number of nodes present
+@app.route('/split_time_span')
+def split_time_span():
+    span = 2628288 # one month at a time seems like it should be good enough to see changes, but not too much compute
+
+
+    params = {"max_num_epochs": 20, "num_training_repeats": 1, "batch_size": 64, "rx_blacklist": [0], "splits": [],
+              'func_list': ["MSE","COM","EMD"], "data_filename": "datasets/helium_SD/SEA30_helium.csv",
+              "split_timespan": span, "results_type": "remove_one",
+              "coordinates" : [(47.556372, -122.360229), (47.63509, -122.281609)]}
+
+    # task1 returns the timestamps of the samples corresponding to each split and stores ind "splits" list
+    task1 = celery.signature("tasks.get_time_splits",args=[params],options={"queue":"GPU_queue"})
+    task2 = celery.signature("tasks.split_and_group_timespan",options={"queue":"GPU_queue"})
+    task3 = celery.signature("tasks.log_results", options={"queue": "log_queue"})
+
+    # this logs task_id but that actual results come through split_and_group task
+
+    result = chain(task1,task2,task3).apply_async()
+
+    print(result)
     return f'workflow result: {result}'
 
 @app.route('/recent_group_status')
@@ -172,7 +211,7 @@ def interactive_map():
 def add_together(a, b):
     return a + b
 
-@celery.task(name='tasks.gpu_test')
+@celery.task(name='tasks.gpu_test',queue='GPU_queue')
 def gpu_test():
     return
 
@@ -180,16 +219,13 @@ def gpu_test():
 def group_remove_one(results):
     return
 
-# @celery.task(name='tasks.helium_train')
-# def helium_train(data):
-#     return
-#
-# @celery.task(name='tasks.helium_train_remove_one')
-# def helium_train_remove_one():
-#     data_chucks = [1,2,4,5,6,7,8]
-#     job = group(helium_train.s(data) for data in data_chucks)
-#     result = job.apply_async()
-#     return result.get()
+@celery.task(name='tasks.log_results',queue='log_queue')
+def log_results(results):
+    print(f"writing {results}")
+    with open('/logs/log_results.txt','a') as file:
+        file.write(str(results))
+    return(results)
+
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0',debug=True)

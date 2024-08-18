@@ -83,6 +83,50 @@ def get_rx_lats(passed_params = {None}):
 
     return list(rx_lats)
 
+# returns a list of time_splits from the passed data_file; assumes dataset has already been geo-filtered by coordinates
+def get_time_splits(passed_params = {None}):
+    splits = [] # stores timespan segments
+    if 'data_filename' in passed_params:
+        file_path = passed_params["data_filename"]
+    else:
+        print(f"ERROR: No data_filename specified in passed_params")
+        return []
+
+    if 'timespan' in passed_params:
+        timespan = passed_params['timespan'] # should be tuple like (1718303982,1800000000) or single int 1718303982
+    else:
+        timespan = 0 # use all samples newer than 0 (i.e. use all)
+
+    if 'split_timespan' in passed_params:
+        timespan = passed_params['split_timespan'] # should be tuple like (1718303982,1800000000) or single int 1718303982
+    else:
+        timespan = 2628288 # one month default
+
+    with open(file_path, newline='') as csvfile:
+        csvreader = csv.reader(csvfile)
+
+        # Skip the header row
+        next(csvreader)
+
+        last_timestamp = 0
+
+        for row in csvreader:
+
+            current_timestamp = int(row[0])
+
+            # this is for the broader timespan limits
+            if isinstance(timespan, int):
+                if current_timestamp < timespan:
+                    continue
+            else:
+                if current_timestamp < timespan[0] or current_timestamp > timespan[1]:
+                    continue
+
+            if current_timestamp > last_timestamp:
+                last_timestamp = current_timestamp + timespan
+                splits.append((current_timestamp, last_timestamp))
+
+    return splits
 
 def main_process(passed_params = {None}):
 
