@@ -4,6 +4,7 @@ import json
 import matplotlib.pyplot as plt
 import numpy as np
 import os
+import sys
 import rasterio
 import torch
 from typing import List
@@ -87,88 +88,111 @@ class RSSLocDataset():
             self.tx_vecs = np.array(tx_vecs)
             self.rx_vecs = np.array(rx_vecs, dtype=object)
             self.tx_metadata = np.array(tx_metadata) if tx_metadata is not None else np.array([])
+            self.error_state = False
 
             #print(f"self.tx_vecs {self.tx_vecs}")
-            self.max_num_tx = max([len(vec) for vec in self.tx_vecs]) # + [0]) # in some grids we may have no TXers?
-            self.max_num_rx = self.rldataset.max_num_rx
+            try:
+                self.max_num_tx = max([len(vec) for vec in self.tx_vecs])# + [0]) # in some grids we may have no TXers?
+            except Exception as e:
+                self.max_num_tx = 0
+                print(f"An error occurred in dataset.py line 98: {e}")
+                self.error_state = e
+                print(f"setting self.error_state = {self.error_state}")
+            try:
+                self.max_num_rx = self.rldataset.max_num_rx
+            except Exception as e:
+                self.max_num_rx = 0
+                print(f"An error occurred in dataset.py line 104: {e}")
+                self.error_state = e
+                print(f"setting self.error_state = {self.error_state}")
+
+
+
 
         def make_tensors(self):
-            self.made_tensors = True
+            try:
+                self.made_tensors = True
 
-            # Appending the tx and rx distance to yvecs
-            if self.tx_vecs[0].shape[-1] < 3:
-                if len(self.tx_vecs.shape) == 3:
-                    tmp_shape = list(self.tx_vecs.shape)
-                    tmp_shape[-1] = tmp_shape[-1] + 2
-                    tmp_tx_vecs = np.zeros(tmp_shape)
+                # Appending the tx and rx distance to yvecs
+                if self.tx_vecs[0].shape[-1] < 3:
+                    if len(self.tx_vecs.shape) == 3:
+                        tmp_shape = list(self.tx_vecs.shape)
+                        tmp_shape[-1] = tmp_shape[-1] + 2
+                        tmp_tx_vecs = np.zeros(tmp_shape)
+                    else:
+                        tmp_tx_vecs = self.tx_vecs
+                    for i, (rx_vec, tx_vec) in enumerate(zip(self.rx_vecs, self.tx_vecs)):
+                        if len(tx_vec) == 0: continue
+                        tx_distances = []
+                        rx_distances = []
+                        for tx in tx_vec:
+                            min_tx_distance = np.ma.masked_equal(np.linalg.norm( (tx[0:2] - tx_vec[:,0:2]).astype(float), axis=1), 0, copy=False).min()
+                            min_rx_distance = np.linalg.norm( (tx[0:2] - rx_vec[:,1:3]).astype(float), axis=1).min()
+                            tx_distances.append(min_tx_distance)
+                            rx_distances.append(min_rx_distance)
+                        tx_distances = np.array(tx_distances).reshape(-1,1)
+                        rx_distances = np.array(rx_distances).reshape(-1,1)
+                        tmp_tx_vecs[i] = np.hstack((self.tx_vecs[i], tx_distances, rx_distances))
+                    self.tx_vecs = tmp_tx_vecs
                 else:
-                    tmp_tx_vecs = self.tx_vecs
-                for i, (rx_vec, tx_vec) in enumerate(zip(self.rx_vecs, self.tx_vecs)):
-                    if len(tx_vec) == 0: continue
-                    tx_distances = []
-                    rx_distances = []
-                    for tx in tx_vec:
-                        min_tx_distance = np.ma.masked_equal(np.linalg.norm( (tx[0:2] - tx_vec[:,0:2]).astype(float), axis=1), 0, copy=False).min()
-                        min_rx_distance = np.linalg.norm( (tx[0:2] - rx_vec[:,1:3]).astype(float), axis=1).min()
-                        tx_distances.append(min_tx_distance)
-                        rx_distances.append(min_rx_distance)
-                    tx_distances = np.array(tx_distances).reshape(-1,1)
-                    rx_distances = np.array(rx_distances).reshape(-1,1)
-                    tmp_tx_vecs[i] = np.hstack((self.tx_vecs[i], tx_distances, rx_distances))
-                self.tx_vecs = tmp_tx_vecs
-            else:
-                for i, (rx_vec, tx_vec) in enumerate(zip(self.rx_vecs, self.tx_vecs)):
-                    if len(tx_vec) == 0: continue
-                    rx_distances = []
-                    for tx in tx_vec:
-                        min_rx_distance = np.linalg.norm((tx[0:2] - rx_vec[:,1:3]).astype(float), axis=1).min()
-                        rx_distances.append(min_rx_distance)
-                    rx_distances = np.array(rx_distances)
-                    self.tx_vecs[i][:,-1] = rx_distances
+                    for i, (rx_vec, tx_vec) in enumerate(zip(self.rx_vecs, self.tx_vecs)):
+                        if len(tx_vec) == 0: continue
+                        rx_distances = []
+                        for tx in tx_vec:
+                            min_rx_distance = np.linalg.norm((tx[0:2] - rx_vec[:,1:3]).astype(float), axis=1).min()
+                            rx_distances.append(min_rx_distance)
+                        rx_distances = np.array(rx_distances)
+                        self.tx_vecs[i][:,-1] = rx_distances
 
-            num_params = 2
-            rx_vecs_arr = np.zeros((len(self.rx_vecs),self.max_num_rx+(10 if self.rldataset.params.adv_train else 0), num_params+3))
-            for i, rx_vec in enumerate(self.rx_vecs):
-                if len(rx_vec):
-                    rx_vec = rx_vec / np.array([1,self.rldataset.params.meter_scale, self.rldataset.params.meter_scale,1,1])
-                    rx_vecs_arr[i,rx_vec[:,3].astype(int)] = rx_vec
-                    self.rx_vecs[i][:,1:3] -= self.origin
-            rx_vecs_arr[:,:,1:3] -= self.origin/self.rldataset.params.meter_scale # Adjust coordinates to the bottom left corner of rectangle as origin
-            rx_vecs_arr[rx_vecs_arr < 0] = 0
-            rx_vecs_tensor = torch.Tensor(rx_vecs_arr).to(self.rldataset.params.device)
+                num_params = 2
+                rx_vecs_arr = np.zeros((len(self.rx_vecs),self.max_num_rx+(10 if self.rldataset.params.adv_train else 0), num_params+3))
+                for i, rx_vec in enumerate(self.rx_vecs):
+                    if len(rx_vec):
+                        rx_vec = rx_vec / np.array([1,self.rldataset.params.meter_scale, self.rldataset.params.meter_scale,1,1])
+                        rx_vecs_arr[i,rx_vec[:,3].astype(int)] = rx_vec
+                        self.rx_vecs[i][:,1:3] -= self.origin
+                rx_vecs_arr[:,:,1:3] -= self.origin/self.rldataset.params.meter_scale # Adjust coordinates to the bottom left corner of rectangle as origin
+                rx_vecs_arr[rx_vecs_arr < 0] = 0
+                rx_vecs_tensor = torch.Tensor(rx_vecs_arr).to(self.rldataset.params.device)
 
-            tx_vecs_arr = np.zeros((len(self.tx_vecs),self.max_num_tx, num_params+1))
-            for i, tx_vec in enumerate(self.tx_vecs):
-                if len(tx_vec):
-                    tx_vecs_arr[i,:len(tx_vec),0] = 1
-                    tx_vecs_arr[i,:len(tx_vec),1:num_params+1] = (np.array(tx_vec)[:,:num_params] - self.origin) / np.array([self.rldataset.params.meter_scale, self.rldataset.params.meter_scale])
-                    self.tx_vecs[i][:,0:2] -= self.origin
-            tx_vecs_tensor = torch.Tensor(tx_vecs_arr).to(self.rldataset.params.device)
-            dataset = torch.utils.data.TensorDataset(rx_vecs_tensor, tx_vecs_tensor)
-            pin_memory = self.rldataset.params.device != torch.device('cuda') 
-            self.dataloader = torch.utils.data.DataLoader(dataset, batch_size=self.rldataset.params.batch_size, shuffle=True, pin_memory=pin_memory)
-            self.ordered_dataloader = torch.utils.data.DataLoader(dataset, batch_size=self.rldataset.params.batch_size, shuffle=False, pin_memory=pin_memory)
-
+                tx_vecs_arr = np.zeros((len(self.tx_vecs),self.max_num_tx, num_params+1))
+                for i, tx_vec in enumerate(self.tx_vecs):
+                    if len(tx_vec):
+                        tx_vecs_arr[i,:len(tx_vec),0] = 1
+                        tx_vecs_arr[i,:len(tx_vec),1:num_params+1] = (np.array(tx_vec)[:,:num_params] - self.origin) / np.array([self.rldataset.params.meter_scale, self.rldataset.params.meter_scale])
+                        self.tx_vecs[i][:,0:2] -= self.origin
+                tx_vecs_tensor = torch.Tensor(tx_vecs_arr).to(self.rldataset.params.device)
+                dataset = torch.utils.data.TensorDataset(rx_vecs_tensor, tx_vecs_tensor)
+                pin_memory = self.rldataset.params.device != torch.device('cuda')
+                self.dataloader = torch.utils.data.DataLoader(dataset, batch_size=self.rldataset.params.batch_size, shuffle=True, pin_memory=pin_memory)
+                self.ordered_dataloader = torch.utils.data.DataLoader(dataset, batch_size=self.rldataset.params.batch_size, shuffle=False, pin_memory=pin_memory)
+            except Exception as e:
+                self.error_state = e
+                print(f"WARN: In dataset.py/make_tensors error: {e}")
 
     def __init__(self, params: LocConfig, sensors_to_remove: List[int]=[]):
         """
         params: a LocConfig object, see config.py for parameters
         sensors_to_remove: List[int] input indicies to remove from training data, for experiments on adding new devices.
         """
+        self.error_state = False
         self.params = params
         self.data = {}
         self.buffer = 1
         self.data_files = data_files[self.params.dataset_index]
         self.load_data()
-        self.elevation_tensors = None
-        self.building_tensors = None
-        self.make_datasets(
-            split=self.params.data_split,
-            make_val=self.params.make_val,
-            should_augment=self.params.should_augment,
-            convert_all_inputs=True,
-            sensors_to_remove=sensors_to_remove
-        )
+        if not self.error_state:
+            print(f"line 177 dataset.py error_state: {self.error_state}")
+            self.elevation_tensors = None
+            self.building_tensors = None
+            if not self.error_state:
+                self.make_datasets(
+                    split=self.params.data_split,
+                    make_val=self.params.make_val,
+                    should_augment=self.params.should_augment,
+                    convert_all_inputs=True,
+                    sensors_to_remove=sensors_to_remove
+                )
 
 
     def make_elevation_tensors(self, meter_scale=None):
@@ -254,6 +278,10 @@ class RSSLocDataset():
         if 'grid' in separation_method:
             self.data[train_key].grid_inds = train_grid_inds
             self.data[test_key].grid_inds = test_grid_inds
+        if self.data[train_key].error_state:
+            self.error_state = self.data[train_key].error_state
+        if self.data[test_key].error_state:
+            self.error_state = self.data[test_key].error_state
         return train_key, test_key
 
 
@@ -1382,6 +1410,12 @@ class RSSLocDataset():
         else:
             self.data[None] = self.Samples(self, np.array(rx_vecs, dtype=object), np.array(tx_vecs, dtype=object))
         samples = self.data[None]
+        print(f"line 1401 in dataset.py self.data[None]: {self.data[None].error_state}")
+        if self.data[None].error_state:
+            self.error_state = self.data[None].error_state
+            print(f"dataset line 1402 self.error_state: {self.error_state}")
+
+
         origin = samples.origin
         top_corner = origin + np.array([samples.rectangle_width,  samples.rectangle_height])
         self.corners = np.array([origin, top_corner])
@@ -1489,15 +1523,18 @@ class RSSLocDataset():
 
 
     def set_default_keys(self, aug_train_key=None, train_key=None, test_key=None, test_keys=[]):
-        self.aug_train_key = aug_train_key if aug_train_key!=None or not hasattr(self, 'aug_train_key') else self.aug_train_key
-        self.train_key = train_key if train_key!=None or not hasattr(self, 'train_key') else self.train_key
-        self.test_key = test_key if test_key!=None or not hasattr(self, 'test_key') else self.test_key
-        self.test_keys = test_keys if len(test_keys)!=0 or not hasattr(self, 'test_keys') else self.test_keys
-        keys =  set([aug_train_key, train_key, test_key] + test_keys)
-        for key in keys:
-            if key is not None and not hasattr(self.data[key],'dataloader'):
-                self.data[key].make_tensors()
-
+        try:
+            self.aug_train_key = aug_train_key if aug_train_key!=None or not hasattr(self, 'aug_train_key') else self.aug_train_key
+            self.train_key = train_key if train_key!=None or not hasattr(self, 'train_key') else self.train_key
+            self.test_key = test_key if test_key!=None or not hasattr(self, 'test_key') else self.test_key
+            self.test_keys = test_keys if len(test_keys)!=0 or not hasattr(self, 'test_keys') else self.test_keys
+            keys =  set([aug_train_key, train_key, test_key] + test_keys)
+            for key in keys:
+                if key is not None and not hasattr(self.data[key],'dataloader'):
+                    self.data[key].make_tensors()
+        except Exception as e:
+            self.error_state = e
+            print(f"in dataset.py/set_default_keys error: {e}")
 
     def img_height(self): 
         if hasattr(self, 'train_key'):

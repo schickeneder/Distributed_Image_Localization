@@ -237,7 +237,7 @@ def main_process(passed_params = {None}):
             # "data_format": data_format,
             "data_filename": data_filename,
             "rx_blacklist": rx_blacklist,
-            "timespan":timespan,
+            "timespan": timespan,
         }
         params = LocConfig(**dict_params)  # sets up parameters, also some unique defaults depending on the dataset
 
@@ -252,6 +252,11 @@ def main_process(passed_params = {None}):
         model_filename = PATH.replace('model.', 'model_' + model_ending)
 
         rldataset = RSSLocDataset(params)  # this loads and processes different datasets ..self.load_data()
+        if not rldataset.error_state == False:
+            print(f"WARN: helium_training line 256 error_state: {rldataset.error_state}")
+            # skip this iteration
+            continue
+
         rldataset.print_dataset_stats()
 
         dlloc = DLLocalization(rldataset, loss_object=loss_func)

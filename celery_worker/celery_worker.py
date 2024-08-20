@@ -31,6 +31,10 @@ def add_together(a, b):
 @celery.task(name='tasks.log_results',queue='log_queue',acks_late=True)
 def log_results(results):
     print(f"writing {results}")
+    if "results_type" in results:
+        name = results["results_type"]
+    else:
+        name = "no_results"
     filename = '/logs/' + datetime.datetime.now().strftime("%Y_%m_%d-%H_%M_%S-") + str(results["results_type"]) + '.txt'
     with open(filename,'a') as file:
         file.write(str(results["data"])+"\n")

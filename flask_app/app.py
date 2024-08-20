@@ -136,7 +136,7 @@ def split_time_span():
     span = 2628288 # one month at a time seems like it should be good enough to see changes, but not too much compute
 
 
-    params = {"max_num_epochs": 20, "num_training_repeats": 1, "batch_size": 64, "rx_blacklist": [0], "splits": [],
+    params = {"max_num_epochs": 1, "num_training_repeats": 1, "batch_size": 64, "rx_blacklist": [0], "splits": [],
               'func_list': ["MSE","COM","EMD"], "data_filename": "datasets/helium_SD/SEA30_helium.csv",
               "split_timespan": span, "results_type": "remove_one",
               "coordinates" : [(47.556372, -122.360229), (47.63509, -122.281609)]}

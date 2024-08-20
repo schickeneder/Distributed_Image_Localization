@@ -234,6 +234,8 @@ def main():
     rldataset = RSSLocDataset(params, random_state=random_state)
     train_key, test_key = rldataset.make_datasets(make_val=False)
     train_data, test_data = rldataset.data[train_key], rldataset.data[test_key]
+    if rldataset.error_state:
+        print(f"error in attacker.py line 238 rldataset.error_state: {rldataset.error_state}")
     #rldataset.print_dataset_stats()
 
     # dlloc is the model object that contains the training/eval functions, etc.

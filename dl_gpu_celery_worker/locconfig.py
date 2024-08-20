@@ -92,7 +92,6 @@ class LocConfig():
         self.coordinates = coordinates
         self.rx_blacklist = rx_blacklist
         self.timespan = timespan
-
     def __str__(self):
         if self.apply_rss_noise:
             self.printable_keys['power_limit'] = 'rand_pow'
