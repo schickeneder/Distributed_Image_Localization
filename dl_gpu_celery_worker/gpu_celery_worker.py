@@ -65,7 +65,7 @@ def split_and_group_rx_lats(params):
     # create a group of tasks with each one being passed one of the rx_lats as the only member of rx_blacklist
     g = group(group_remove_one2.s({**params,"rx_blacklist" : [rx_lat]}).
               set(queue="GPU_queue") for rx_lat in params["rx_blacklist"])
-    res = chord(g)(process_remove_one_results.s().set(queue="GPU_queue"))
+    res = chord(g)(process_group_results.s().set(queue="GPU_queue"))
     # No need to return anything because chord callback (process_remove_one_results) will when parallel tasks complete
     return {"results_type": "params", "data": params}
 
@@ -73,27 +73,34 @@ def split_and_group_rx_lats(params):
 def split_and_group_timespan(params):
     print(f"****args for tasks.split_and_group_time_span: {params['splits']}")
     # create a group of tasks with each one being passed one of the rx_lats as the only member of rx_blacklist
-    g = group(group_remove_one2.s({**params,"timespan" : timespan}).
+    g = group(group_split_timespans.s({**params,"timespan" : timespan}).
               set(queue="GPU_queue") for timespan in params["splits"])
-    res = chord(g)(process_remove_one_results.s().set(queue="GPU_queue"))
+    res = chord(g)(process_group_results.s().set(queue="GPU_queue"))
     # No need to return anything because chord callback (process_remove_one_results) will when parallel tasks complete
     return {"results_type": "params", "data": params}
-
-
 
 
 # Added acks_late so acknowledgement occurs after completion, with a time limit of 20 min
 # this will re-queue the task if a worker is interrupted (e.g. a vast machine is outbid and removed during processing)
 @celery.task(name='tasks.group_remove_one2',acks_late=True,time_limit=1200)
 def group_remove_one2(params):
+    params = {**params,"results_type" : "remove_one_results"}
     print(f"****args for tasks.group_remove_one2: {params}")
     res = helium_training.main_process(params)
     #time.sleep(random.randrange(0,15))
     return res
 
-@celery.task(name='tasks.process_remove_one_results', acks_late=True)
-def process_remove_one_results(list_results):
-    print(f"****args for tasks.process_remove_one_results: {list_results}, logging results")
+@celery.task(name='tasks.group_split_timespans',acks_late=True,time_limit=1200)
+def group_split_timespans(params):
+    params = {**params,"results_type" : "split_timespan_results"}
+    print(f"****args for tasks.group_split_timespans: {params}")
+    res = helium_training.main_process(params)
+    #time.sleep(random.randrange(0,15))
+    return res
+
+@celery.task(name='tasks.process_group_results', acks_late=True)
+def process_group_results(list_results):
+    print(f"****args for tasks.process_group_results: {list_results}, logging results")
     # can do whatever other processing we want with the results here, but we will also log them.
     dict_results = {"results_type": "results", "data": list_results}
     task1 = celery.signature("tasks.log_results", args=[dict_results], options={"queue": "log_queue"})

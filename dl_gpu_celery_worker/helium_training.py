@@ -197,7 +197,11 @@ def main_process(passed_params = {None}):
     # parser.add_argument("--random_ind", type=int, default=-1, help='Random Int for selecting set of params')
     # args = parser.parse_args()
 
-    if "results_type":
+    if results_type == "split_timespan_results":
+        results_key = "timespan-" + str(timespan)
+        all_results = {results_key : []} # [0] because when we split it up there will only be one element here
+        # for default results type it will just be "None" for the key
+    else:
         all_results = {rx_blacklist[0] : []} # [0] because when we split it up there will only be one element here
         # for default results type it will just be "None" for the key
 
@@ -273,18 +277,24 @@ def main_process(passed_params = {None}):
             # print("results err mean()")
             #********************* this is the important part ******************************
             print(key, results['err'][key].mean())
-            if results_type == "remove_one" and "_test" in key:
+            if results_type == "remove_one_results" and "_test" in key:
                 tmp = param_set
                 tmp[-1] = str(tmp[-1]) # convert obj to string so it can be serializable
                 result_row = tmp + [key] + [str(results['err'][key].mean())] # float->str so it's serializable
                 all_results[rx_blacklist[0]].append(result_row)
                 # only the test values, not train/train_val/2test_extra
-            else:
-                if results_type == "default": # record all the error types
-                    tmp = param_set
-                    tmp[-1] = str(tmp[-1])  # convert obj to string so it can be serializable
-                    result_row = tmp + [key] + [str(results['err'][key].mean())]  # float->str so it's serializable
-                    all_results[rx_blacklist[0]].append(result_row)
+            if results_type == "split_timespan_results" and "_test" in key:
+                tmp = param_set
+                tmp[-1] = str(tmp[-1]) # convert obj to string so it can be serializable
+                result_row = tmp + [key] + [str(results['err'][key].mean())] # float->str so it's serializable
+                all_results[results_key].append(result_row)
+                # only the test values, not train/train_val/2test_extra
+
+            if results_type == "default": # record all the error types
+                tmp = param_set
+                tmp[-1] = str(tmp[-1])  # convert obj to string so it can be serializable
+                result_row = tmp + [key] + [str(results['err'][key].mean())]  # float->str so it's serializable
+                all_results[rx_blacklist[0]].append(result_row)
 
     # TODO maybe make this a json.dump string?
     return all_results # return main()
