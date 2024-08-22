@@ -423,172 +423,178 @@ class RSSLocDataset():
 
 
     def make_datasets(self, split=None, make_val=True, eval_train=False, eval_special=False, train_size=None, should_augment=False, synthetic_only=False, convert_all_inputs=False, sensors_to_remove=[]):
-        params = self.params
-        if split==None:
-            split = params.data_split
-        train_key=None
-        test_keys = []
-        special_keys = []
-        data_key_prefix = '%.1ftestsize' % params.test_size
-        if split == 'random' or split == 'random_limited':
-            if data_key_prefix + '_train' in self.data.keys():
-                return '0.2testsize_train', '0.2testsize_test'
-            if self.params.dataset_index in [6,8]:
+        try:
+            train_key = None
+            test_keys = []
+            special_keys = []
+            params = self.params
+            if split==None:
+                split = params.data_split
+
+            data_key_prefix = '%.1ftestsize' % params.test_size
+            if split == 'random' or split == 'random_limited':
+                if data_key_prefix + '_train' in self.data.keys():
+                    return '0.2testsize_train', '0.2testsize_test'
+                if self.params.dataset_index in [6,8]:
+                    if 'campus' not in self.data.keys():
+                        self.make_filtered_sample_source([coordinates.CAMPUS_POLYGON], 'campus')
+                    train_key, test_key = self.separate_random_data(test_size=params.test_size, train_size=train_size, data_key_prefix=data_key_prefix, data_source_key='campus', random_state=0) # We fix the random state so we always have the same test set, but different validation sets.
+                else:
+                    train_key, test_key = self.separate_random_data(test_size=params.test_size, train_size=train_size, data_key_prefix=data_key_prefix, random_state=0) # We fix the random state so we always have the same test set, but different validation sets.
+                if make_val:
+                    train_key, train_val_key = self.separate_random_data(test_size=params.test_size, train_size=train_size, data_key_prefix=data_key_prefix, data_source_key=train_key, ending_keys=['train', 'train_val'])
+                    test_keys = [test_key, train_val_key]
+                else:
+                    test_keys = [test_key]
+            elif 'grid' in split:
+                train_random, test_random = self.make_datasets(make_val=False, split='random')
+                random_state = 0
+                grid_size = int(split.split('grid')[1])
+                if grid_size == 2 and self.params.dataset_index == 8 and self.params.use_alt_for_ds8_grid2:
+                    random_state = 1
+                train_key, test_key = self.separate_dataset('grid', grid_size=grid_size, data_key_prefix=data_key_prefix, train_split=params.training_size, source_key=train_random, random_state=random_state)
+                train_val_key, test_extra_key = self.separate_dataset('grid', grid_size=grid_size, data_key_prefix=data_key_prefix, train_split=params.training_size, source_key=test_random, random_state=random_state, keys=['train_val', '2test_extra'])
+                test_keys = [test_key, train_val_key]
+                if len(self.data[test_key].rx_vecs) < 100:
+                    test_keys.append(test_extra_key)
+            elif 'april' in split or 'july' in split or 'nov' in split:
                 if 'campus' not in self.data.keys():
                     self.make_filtered_sample_source([coordinates.CAMPUS_POLYGON], 'campus')
-                train_key, test_key = self.separate_random_data(test_size=params.test_size, train_size=train_size, data_key_prefix=data_key_prefix, data_source_key='campus', random_state=0) # We fix the random state so we always have the same test set, but different validation sets.
-            else:
-                train_key, test_key = self.separate_random_data(test_size=params.test_size, train_size=train_size, data_key_prefix=data_key_prefix, random_state=0) # We fix the random state so we always have the same test set, but different validation sets.
-            if make_val:
-                train_key, train_val_key = self.separate_random_data(test_size=params.test_size, train_size=train_size, data_key_prefix=data_key_prefix, data_source_key=train_key, ending_keys=['train', 'train_val'])
-                test_keys = [test_key, train_val_key]
-            else:
-                test_keys = [test_key]
-        elif 'grid' in split:
-            train_random, test_random = self.make_datasets(make_val=False, split='random')
-            random_state = 0 
-            grid_size = int(split.split('grid')[1])
-            if grid_size == 2 and self.params.dataset_index == 8 and self.params.use_alt_for_ds8_grid2:
-                random_state = 1
-            train_key, test_key = self.separate_dataset('grid', grid_size=grid_size, data_key_prefix=data_key_prefix, train_split=params.training_size, source_key=train_random, random_state=random_state)
-            train_val_key, test_extra_key = self.separate_dataset('grid', grid_size=grid_size, data_key_prefix=data_key_prefix, train_split=params.training_size, source_key=test_random, random_state=random_state, keys=['train_val', '2test_extra'])
-            test_keys = [test_key, train_val_key]
-            if len(self.data[test_key].rx_vecs) < 100:
-                test_keys.append(test_extra_key)
-        elif 'april' in split or 'july' in split or 'nov' in split:
-            if 'campus' not in self.data.keys():
+                source = self.data['campus']
+                april_metadata = np.array(['2022-04' in meta[0]['time'] for meta in source.tx_metadata])
+                july_metadata = np.array(['2022-07' in meta[0]['time'] for meta in source.tx_metadata])
+                nov_metadata = np.array(['2022-11' in meta[0]['time'] for meta in source.tx_metadata])
+                april_inds = np.where(april_metadata)
+                july_inds = np.where(july_metadata)
+                nov_inds = np.where(nov_metadata)
+                combined_inds = np.where(april_metadata + july_metadata)
+                self.data['april'] = self.Samples(self, rx_vecs=source.rx_vecs[april_inds], tx_vecs=source.tx_vecs[april_inds], tx_metadata=source.tx_metadata[april_inds])
+                self.data['july'] = self.Samples(self, rx_vecs=source.rx_vecs[july_inds], tx_vecs=source.tx_vecs[july_inds], tx_metadata=source.tx_metadata[july_inds])
+                self.data['nov'] = self.Samples(self, rx_vecs=source.rx_vecs[nov_inds], tx_vecs=source.tx_vecs[nov_inds], tx_metadata=source.tx_metadata[nov_inds])
+                if 'combined' in split:
+                    self.data['combined'] = self.Samples(self, rx_vecs=source.rx_vecs[combined_inds], tx_vecs=source.tx_vecs[combined_inds], tx_metadata=source.tx_metadata[combined_inds])
+                if 'april' in split[:5]:
+                    train_key = 'april'
+                    test_keys = ['nov'] if 'nov' in split else ['july']
+                elif 'july' in split[:4]:
+                    train_key = 'july'
+                    test_keys = ['nov'] if 'nov' in split else ['april']
+                elif 'nov' in split[:3]:
+                    train_key = 'nov'
+                    test_keys = ['april'] if 'april' in split else ['july']
+
+                if 'combined' in split:
+                    train_key = 'combined'
+                    test_keys = ['nov', 'april', 'july']
+
+                prefix = train_key
+                if 'selftest' in split:
+                    _, ood_test_key = self.separate_random_data('april', random_state=0, data_key_prefix='april')
+                    _, ood_test_key = self.separate_random_data(test_keys[0], random_state=0, data_key_prefix=test_keys[0])
+                    train_key, id_test_key = self.separate_random_data(train_key, random_state=0, data_key_prefix=train_key)
+                    test_keys = [id_test_key, ood_test_key]
+                if make_val:
+                    train_key, train_val_key = self.separate_random_data(train_key, random_state=params.random_state, data_key_prefix=prefix, ending_keys=['train', 'train_val'])
+                    test_keys = test_keys + [train_val_key]
+                test_key = test_keys[0]
+            elif 'driving' in split:
                 self.make_filtered_sample_source([coordinates.CAMPUS_POLYGON], 'campus')
-            source = self.data['campus']
-            april_metadata = np.array(['2022-04' in meta[0]['time'] for meta in source.tx_metadata])
-            july_metadata = np.array(['2022-07' in meta[0]['time'] for meta in source.tx_metadata])
-            nov_metadata = np.array(['2022-11' in meta[0]['time'] for meta in source.tx_metadata])
-            april_inds = np.where(april_metadata)
-            july_inds = np.where(july_metadata)
-            nov_inds = np.where(nov_metadata)
-            combined_inds = np.where(april_metadata + july_metadata)
-            self.data['april'] = self.Samples(self, rx_vecs=source.rx_vecs[april_inds], tx_vecs=source.tx_vecs[april_inds], tx_metadata=source.tx_metadata[april_inds])
-            self.data['july'] = self.Samples(self, rx_vecs=source.rx_vecs[july_inds], tx_vecs=source.tx_vecs[july_inds], tx_metadata=source.tx_metadata[july_inds])
-            self.data['nov'] = self.Samples(self, rx_vecs=source.rx_vecs[nov_inds], tx_vecs=source.tx_vecs[nov_inds], tx_metadata=source.tx_metadata[nov_inds])
-            if 'combined' in split:
-                self.data['combined'] = self.Samples(self, rx_vecs=source.rx_vecs[combined_inds], tx_vecs=source.tx_vecs[combined_inds], tx_metadata=source.tx_metadata[combined_inds])
-            if 'april' in split[:5]:
-                train_key = 'april'
-                test_keys = ['nov'] if 'nov' in split else ['july']
-            elif 'july' in split[:4]:
-                train_key = 'july'
-                test_keys = ['nov'] if 'nov' in split else ['april']
-            elif 'nov' in split[:3]:
-                train_key = 'nov'
-                test_keys = ['april'] if 'april' in split else ['july']
+                split_keys = ['driving', 'non-driving']
+                driving_key, non_driving_key = self.separate_dataset('driving', keys=split_keys, source_key='campus')
+                if split == 'driving':
+                    train_key, test_key = driving_key, non_driving_key
+                else:
+                    train_key, test_key = non_driving_key, driving_key
+                if make_val:
+                    train_key, train_val_key = self.separate_random_data(train_key, random_state=params.random_state, ending_keys=['train', 'train_val'])
+                    test_keys = [test_key, train_val_key]
+                else:
+                    test_keys = [test_key]
+            elif 'biking' in split:
+                self.make_filtered_sample_source([coordinates.CAMPUS_POLYGON], 'campus')
+                split_keys = ['driving', 'non-driving']
+                driving_key, non_driving_key = self.separate_dataset('driving', keys=split_keys, source_key='campus')
+                walking_key, biking_key = self.separate_dataset('walking', keys=['walking', 'biking'], source_key=non_driving_key)
+                train_key, test_key = biking_key, walking_key
+                test_keys = [walking_key, driving_key]
+                if make_val:
+                    train_key, train_val_key = self.separate_random_data(train_key, random_state=params.random_state, ending_keys=['train', 'train_val'])
+                    test_keys = test_keys + [train_val_key]
+            elif 'radius' in split:
+                keys = self.make_datasets(make_val=make_val, split='random')
+                radius = int(split.split('radius')[1])
+                center_point = self.get_center_point()
+                train_key, _ = self.get_data_within_radius(center_point, radius, data_key=self.train_key)
+                test_keys, train_val_keys = [self.get_data_within_radius(center_point, radius, data_key=key) for key in self.test_keys]
+                test_key = test_keys[1]
+                test_keys = [test_keys[1], train_val_keys[0]]
 
-            if 'combined' in split:
-                train_key = 'combined'
-                test_keys = ['nov', 'april', 'july']
 
-            prefix = train_key
-            if 'selftest' in split:
-                _, ood_test_key = self.separate_random_data('april', random_state=0, data_key_prefix='april')
-                _, ood_test_key = self.separate_random_data(test_keys[0], random_state=0, data_key_prefix=test_keys[0])
-                train_key, id_test_key = self.separate_random_data(train_key, random_state=0, data_key_prefix=train_key)
-                test_keys = [id_test_key, ood_test_key]
-            if make_val:
-                train_key, train_val_key = self.separate_random_data(train_key, random_state=params.random_state, data_key_prefix=prefix, ending_keys=['train', 'train_val'])
-                test_keys = test_keys + [train_val_key]
-            test_key = test_keys[0]
-        elif 'driving' in split:
-            self.make_filtered_sample_source([coordinates.CAMPUS_POLYGON], 'campus')
-            split_keys = ['driving', 'non-driving']
-            driving_key, non_driving_key = self.separate_dataset('driving', keys=split_keys, source_key='campus')
-            if split == 'driving':
-                train_key, test_key = driving_key, non_driving_key
+            if 'off_campus' == split or eval_special:
+                if 'campus' not in self.data.keys():
+                    self.make_filtered_sample_source([coordinates.campus_polygon], 'campus')
+                if '0.2testsize_train' not in self.data.keys():
+                    self.make_datasets(make_val=False, split='random')
+                self.data['off_campus'] = self.make_missing_samples('campus')
+                train_key = '0.2testsize_train'
+                if eval_special:
+                    special_keys.append('off_campus')
+                else:
+                    test_key = 'off_campus'
+            if 'indoor' == split or eval_special:
+                if '0.2testsize_train' not in self.data.keys():
+                    self.make_datasets(make_val=False, split='random')
+                source = self.data[None]
+                metadata = np.array([meta[0]['transport'] for meta in source.tx_metadata])
+                inds = np.where(metadata == 'inside')
+                self.data['indoor'] = self.Samples(self, rx_vecs=source.rx_vecs[inds], tx_vecs=source.tx_vecs[inds], tx_metadata=source.tx_metadata[inds])
+                train_key = '0.2testsize_train'
+                if eval_special:
+                    special_keys.append('indoor')
+                else:
+                    test_key = 'indoor'
+            if split == '2tx' or eval_special:
+                params2 = copy.deepcopy(params)
+                params2.make_val = False
+                params2.one_tx = False
+                params2.data_split = 'random'
+                rldataset2 = RSSLocDataset(params2)
+                source = rldataset2.data[None]
+                tx_lengths = np.array([len(tx_vec) for tx_vec in source.tx_vecs])
+                inds = np.where(tx_lengths == 2)
+                tx_vecs = np.array(list(source.tx_vecs[inds]))
+                self.data['2tx'] = self.Samples(self, rx_vecs=source.rx_vecs[inds], tx_vecs=tx_vecs, tx_metadata=source.tx_metadata[inds])
+                if '0.2testsize_train' not in self.data.keys():
+                    self.make_datasets(make_val=False, split='random')
+                train_key = '0.2testsize_train'
+                if eval_special:
+                    special_keys.append('2tx')
+                else:
+                    test_key = '2tx'
+
+            if eval_train:
+                test_keys.append(train_key)
+
+            if len(test_keys) > 0:
+                self.set_default_keys(train_key=train_key, test_keys=test_keys + special_keys)
             else:
-                train_key, test_key = non_driving_key, driving_key
-            if make_val:
-                train_key, train_val_key = self.separate_random_data(train_key, random_state=params.random_state, ending_keys=['train', 'train_val'])
-                test_keys = [test_key, train_val_key]
-            else:
-                test_keys = [test_key]
-        elif 'biking' in split:
-            self.make_filtered_sample_source([coordinates.CAMPUS_POLYGON], 'campus')
-            split_keys = ['driving', 'non-driving']
-            driving_key, non_driving_key = self.separate_dataset('driving', keys=split_keys, source_key='campus')
-            walking_key, biking_key = self.separate_dataset('walking', keys=['walking', 'biking'], source_key=non_driving_key)
-            train_key, test_key = biking_key, walking_key
-            test_keys = [walking_key, driving_key]
-            if make_val:
-                train_key, train_val_key = self.separate_random_data(train_key, random_state=params.random_state, ending_keys=['train', 'train_val'])
-                test_keys = test_keys + [train_val_key]
-        elif 'radius' in split:
-            keys = self.make_datasets(make_val=make_val, split='random')
-            radius = int(split.split('radius')[1])
-            center_point = self.get_center_point()
-            train_key, _ = self.get_data_within_radius(center_point, radius, data_key=self.train_key)
-            test_keys, train_val_keys = [self.get_data_within_radius(center_point, radius, data_key=key) for key in self.test_keys]
-            test_key = test_keys[1]
-            test_keys = [test_keys[1], train_val_keys[0]]
+                self.set_default_keys(train_key=train_key, test_key=test_key)
+
+            if should_augment and params.augmentation is not None:
+                # Must indicate if sensors should be removed BEFORE training the augmentor object
+                self.sensors_to_remove = sensors_to_remove
+                self.add_synthetic_training_data(synthetic_only=synthetic_only, convert_all_inputs=convert_all_inputs)
+                #self.nonlearning_localization()
+            # Remove sensors from train data for experiments on adding new devices at inference time
+            if sensors_to_remove:
+                for sensor in sensors_to_remove:
+                    self.mute_inputs_in_data_key(train_key, sensor)
+            return train_key, test_key
+        except Exception as e:
+            print(f"Encountered an error in line 1532 of dataset.py: {e}")
+            self.error_state = e
 
 
-        if 'off_campus' == split or eval_special:
-            if 'campus' not in self.data.keys():
-                self.make_filtered_sample_source([coordinates.campus_polygon], 'campus')
-            if '0.2testsize_train' not in self.data.keys():
-                self.make_datasets(make_val=False, split='random')
-            self.data['off_campus'] = self.make_missing_samples('campus')
-            train_key = '0.2testsize_train'
-            if eval_special:
-                special_keys.append('off_campus')
-            else:
-                test_key = 'off_campus'
-        if 'indoor' == split or eval_special:
-            if '0.2testsize_train' not in self.data.keys():
-                self.make_datasets(make_val=False, split='random')
-            source = self.data[None]
-            metadata = np.array([meta[0]['transport'] for meta in source.tx_metadata])
-            inds = np.where(metadata == 'inside')
-            self.data['indoor'] = self.Samples(self, rx_vecs=source.rx_vecs[inds], tx_vecs=source.tx_vecs[inds], tx_metadata=source.tx_metadata[inds])
-            train_key = '0.2testsize_train'
-            if eval_special:
-                special_keys.append('indoor')
-            else:
-                test_key = 'indoor'
-        if split == '2tx' or eval_special:
-            params2 = copy.deepcopy(params)
-            params2.make_val = False
-            params2.one_tx = False
-            params2.data_split = 'random'
-            rldataset2 = RSSLocDataset(params2)
-            source = rldataset2.data[None]
-            tx_lengths = np.array([len(tx_vec) for tx_vec in source.tx_vecs])
-            inds = np.where(tx_lengths == 2)
-            tx_vecs = np.array(list(source.tx_vecs[inds]))
-            self.data['2tx'] = self.Samples(self, rx_vecs=source.rx_vecs[inds], tx_vecs=tx_vecs, tx_metadata=source.tx_metadata[inds])
-            if '0.2testsize_train' not in self.data.keys():
-                self.make_datasets(make_val=False, split='random')
-            train_key = '0.2testsize_train'
-            if eval_special:
-                special_keys.append('2tx')
-            else:
-                test_key = '2tx'
-
-        if eval_train:
-            test_keys.append(train_key)
-
-        if len(test_keys) > 0:
-            self.set_default_keys(train_key=train_key, test_keys=test_keys + special_keys)
-        else:
-            self.set_default_keys(train_key=train_key, test_key=test_key)
-
-        if should_augment and params.augmentation is not None:
-            # Must indicate if sensors should be removed BEFORE training the augmentor object
-            self.sensors_to_remove = sensors_to_remove
-            self.add_synthetic_training_data(synthetic_only=synthetic_only, convert_all_inputs=convert_all_inputs)
-            #self.nonlearning_localization()
-        # Remove sensors from train data for experiments on adding new devices at inference time
-        if sensors_to_remove:
-            for sensor in sensors_to_remove:
-                self.mute_inputs_in_data_key(train_key, sensor)
-
-        return train_key, test_key
 
     
     def mute_inputs_in_data_key(self, key, sensor_id, mute_synthetic=False):
@@ -1443,82 +1449,91 @@ class RSSLocDataset():
 
         
     def separate_random_data(self, data_source_key=None, test_size=0.2, train_size=None, data_key_prefix='', use_folds=False, n_splits=5, num_tx=None, ending_keys=['train', 'test'], random_state=None):
-        if isinstance(num_tx, int):
-            num_tx = [num_tx]
-        if self.params.one_tx:
-            num_tx = [1]
-        data_source = self.data[data_source_key]
-        if self.params.dataset_index == 6:
-            inds = self.filter_inds_by_metadata(source_key=data_source_key)
-            x_vecs = copy.deepcopy(data_source.rx_vecs[inds])
-            y_vecs = copy.deepcopy(data_source.tx_vecs[inds])
-            tx_metadata = copy.deepcopy(data_source.tx_metadata[inds])
-        else:
-            x_vecs = copy.deepcopy(data_source.rx_vecs)
-            y_vecs = copy.deepcopy(data_source.tx_vecs)
 
-        if num_tx == None or len(num_tx) < 1:
-            num_tx = list(range(data_source.max_num_tx+1))
-        valid_inds = [i for i, vec in enumerate(y_vecs) if len(vec) in num_tx]
-        x_vecs = x_vecs[valid_inds]
-        y_vecs = y_vecs[valid_inds]
+            try:
+                if isinstance(num_tx, int):
+                    num_tx = [num_tx]
+                if self.params.one_tx:
+                    num_tx = [1]
+                data_source = self.data[data_source_key]
+                if self.params.dataset_index == 6:
+                    inds = self.filter_inds_by_metadata(source_key=data_source_key)
+                    x_vecs = copy.deepcopy(data_source.rx_vecs[inds])
+                    y_vecs = copy.deepcopy(data_source.tx_vecs[inds])
+                    tx_metadata = copy.deepcopy(data_source.tx_metadata[inds])
+                else:
+                    x_vecs = copy.deepcopy(data_source.rx_vecs)
+                    y_vecs = copy.deepcopy(data_source.tx_vecs)
 
-        count = 0
-        unique_locations_dict = {}
-        empty_count = 0
-        for i, y_vec in enumerate(y_vecs):
-            if len(y_vec) == 0: 
-                key = empty_count 
-                empty_count += 1
-            else:
-                key = y_vec[:,:2].tobytes()
-            if key in unique_locations_dict:
-                unique_locations_dict[key].append(i)
-                count += 1
-            else:
-                unique_locations_dict[key] = [i]
-                count += 1
+                if num_tx == None or len(num_tx) < 1:
+                    num_tx = list(range(data_source.max_num_tx+1))
+                valid_inds = [i for i, vec in enumerate(y_vecs) if len(vec) in num_tx]
+                x_vecs = x_vecs[valid_inds]
+                y_vecs = y_vecs[valid_inds]
 
-        if use_folds:
-            print('Not implemented.')
-            #kf = KFold(n_splits=n_splits, random_state=self.random_state, shuffle=True)
-            #fold_counter = 0
-            #for train_index, test_index in kf.split(x_lengths):
-            #    x_vecs_train, x_vecs_test = x_vecs[train_index], x_vecs[test_index]
-            #    y_vecs_train, y_vecs_test = y_vecs[train_index], y_vecs[test_index]
-            #    x_lengths_train, x_lengths_test = x_lengths[train_index], x_lengths[test_index]
-            #    y_lengths_train, y_lengths_test = y_lengths[train_index], y_lengths[test_index]
-            #    self.make_data_entry(data_key_prefix+'_other_folds_%i' % fold_counter, x_train, y_train, x_vecs_train, y_vecs_train, x_lengths_train, y_lengths_train, make_tensors=make_tensors)
-            #    self.make_data_entry(data_key_prefix+'_fold_%i' % fold_counter, x_test, y_test, x_vecs_test, y_vecs_test, x_lengths_test, y_lengths_test, make_tensors=make_tensors)
-            #    fold_counter += 1
-        else:
-            if len(data_key_prefix) == 0:
-                train_key = ending_keys[0]
-                test_key = ending_keys[1]
-            else:
-                train_key = data_key_prefix+'_' + ending_keys[0]
-                test_key = data_key_prefix+'_' + ending_keys[1]
-            
-            train_location_keys, test_location_keys = train_test_split(list(unique_locations_dict.keys()), shuffle=True, test_size=test_size, train_size=train_size, random_state=random_state if random_state is not None else self.params.random_state)
-            train_inds = []
-            test_inds = []
-            for key in train_location_keys:
-                train_inds += unique_locations_dict[key]
-            for key in test_location_keys:
-                test_inds += unique_locations_dict[key]
+                count = 0
+                unique_locations_dict = {}
+                empty_count = 0
+                for i, y_vec in enumerate(y_vecs):
+                    if len(y_vec) == 0:
+                        key = empty_count
+                        empty_count += 1
+                    else:
+                        key = y_vec[:,:2].tobytes()
+                    if key in unique_locations_dict:
+                        unique_locations_dict[key].append(i)
+                        count += 1
+                    else:
+                        unique_locations_dict[key] = [i]
+                        count += 1
 
-            x_vecs_train, x_vecs_test = x_vecs[train_inds], x_vecs[test_inds]
-            label_train, label_test = y_vecs[train_inds], y_vecs[test_inds]
-            if self.params.dataset_index == 6:
-                metadata_train, metadata_test = tx_metadata[train_inds], tx_metadata[test_inds]
-                self.data[train_key] = self.Samples(self, x_vecs_train, label_train, tx_metadata=metadata_train)
-                self.data[test_key] = self.Samples(self, x_vecs_test, label_test, tx_metadata=metadata_test)
-            elif self.params.dataset_index == 7:
-                self.data[train_key] = self.Samples(self, x_vecs_train, label_train, no_shift=True)
-                self.data[test_key] = self.Samples(self, x_vecs_test, label_test, no_shift=True)
-            else:
-                self.data[train_key] = self.Samples(self, x_vecs_train, label_train)
-                self.data[test_key] = self.Samples(self, x_vecs_test, label_test)
+                if use_folds:
+                    print('Not implemented.')
+                    #kf = KFold(n_splits=n_splits, random_state=self.random_state, shuffle=True)
+                    #fold_counter = 0
+                    #for train_index, test_index in kf.split(x_lengths):
+                    #    x_vecs_train, x_vecs_test = x_vecs[train_index], x_vecs[test_index]
+                    #    y_vecs_train, y_vecs_test = y_vecs[train_index], y_vecs[test_index]
+                    #    x_lengths_train, x_lengths_test = x_lengths[train_index], x_lengths[test_index]
+                    #    y_lengths_train, y_lengths_test = y_lengths[train_index], y_lengths[test_index]
+                    #    self.make_data_entry(data_key_prefix+'_other_folds_%i' % fold_counter, x_train, y_train, x_vecs_train, y_vecs_train, x_lengths_train, y_lengths_train, make_tensors=make_tensors)
+                    #    self.make_data_entry(data_key_prefix+'_fold_%i' % fold_counter, x_test, y_test, x_vecs_test, y_vecs_test, x_lengths_test, y_lengths_test, make_tensors=make_tensors)
+                    #    fold_counter += 1
+                else:
+                    if len(data_key_prefix) == 0:
+                        train_key = ending_keys[0]
+                        test_key = ending_keys[1]
+                    else:
+                        train_key = data_key_prefix+'_' + ending_keys[0]
+                        test_key = data_key_prefix+'_' + ending_keys[1]
+
+                        train_location_keys, test_location_keys = train_test_split(list(unique_locations_dict.keys()), shuffle=True, test_size=test_size, train_size=train_size, random_state=random_state if random_state is not None else self.params.random_state)
+
+
+                    train_inds = []
+                    test_inds = []
+                    for key in train_location_keys:
+                        train_inds += unique_locations_dict[key]
+                    for key in test_location_keys:
+                        test_inds += unique_locations_dict[key]
+
+                    x_vecs_train, x_vecs_test = x_vecs[train_inds], x_vecs[test_inds]
+                    label_train, label_test = y_vecs[train_inds], y_vecs[test_inds]
+                    if self.params.dataset_index == 6:
+                        metadata_train, metadata_test = tx_metadata[train_inds], tx_metadata[test_inds]
+                        self.data[train_key] = self.Samples(self, x_vecs_train, label_train, tx_metadata=metadata_train)
+                        self.data[test_key] = self.Samples(self, x_vecs_test, label_test, tx_metadata=metadata_test)
+                    elif self.params.dataset_index == 7:
+                        self.data[train_key] = self.Samples(self, x_vecs_train, label_train, no_shift=True)
+                        self.data[test_key] = self.Samples(self, x_vecs_test, label_test, no_shift=True)
+                    else:
+                        self.data[train_key] = self.Samples(self, x_vecs_train, label_train)
+                        self.data[test_key] = self.Samples(self, x_vecs_test, label_test)
+
+            except Exception as e:
+                print(f"Encountered an error in line 1532 of dataset.py: {e}")
+                self.error_state = e
+
             return train_key, test_key
 
 

@@ -35,9 +35,33 @@ def log_results(results):
         name = results["results_type"]
     else:
         name = "no_results"
-    filename = '/logs/' + datetime.datetime.now().strftime("%Y_%m_%d-%H_%M_%S-") + str(results["results_type"]) + '.txt'
+    filename = '/logs/' + datetime.datetime.now().strftime("%Y_%m_%d-%H_%M_%S-") + name + '.txt'
     with open(filename,'a') as file:
         file.write(str(results["data"])+"\n")
+
+    print("Printing best case train_error for each segment")
+
+    if name == "results":
+        for span in results["data"]:
+            min_error = 9999.0
+            span_key = list(span.keys())[0]
+            for result in span[span_key]:
+                if float(result[-1]) < min_error:
+                    min_error = float(result[-1])
+                    min_key = span_key
+            print(f"{span_key} : {min_error}")
+
+
+
+    # keys = results.keys()
+    # for key in keys:
+    #     min_error = 9999.0
+    #     for result in results[key]:
+    #         if float(result[-1]) < min_error:
+    #             min_error = result[-1]
+    #             min_key = key
+    #     print(f"{key} : {min_error}")
+
     return(results)
 
 # @celery.task(name='tasks.helium_train')

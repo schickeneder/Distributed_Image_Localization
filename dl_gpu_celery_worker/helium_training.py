@@ -84,6 +84,8 @@ def get_rx_lats(passed_params = {None}):
     return list(rx_lats)
 
 # returns a list of time_splits from the passed data_file; assumes dataset has already been geo-filtered by coordinates
+# does not assume rows are in order and will sort according to row[0] which should be a unix timestamp
+# also include the number of rows in each split as the 3rd element in the tuple
 def get_time_splits(passed_params = {None}):
     splits = [] # stores timespan segments
     if 'data_filename' in passed_params:
@@ -98,9 +100,11 @@ def get_time_splits(passed_params = {None}):
         timespan = 0 # use all samples newer than 0 (i.e. use all)
 
     if 'split_timespan' in passed_params:
-        timespan = passed_params['split_timespan'] # should be tuple like (1718303982,1800000000) or single int 1718303982
+        split_timespan = passed_params['split_timespan'] # should be tuple like (1718303982,1800000000) or single int 1718303982
     else:
-        timespan = 2628288 # one month default
+        split_timespan = 2628288 # one month default
+
+    print(f"timespan and split_timespan are {timespan}, {split_timespan}")
 
     with open(file_path, newline='') as csvfile:
         csvreader = csv.reader(csvfile)
@@ -108,9 +112,13 @@ def get_time_splits(passed_params = {None}):
         # Skip the header row
         next(csvreader)
 
+        sorted_rows = sorted(csvreader, key=lambda row: row[0])
+
         last_timestamp = 0
 
-        for row in csvreader:
+        row_count = 0
+
+        for row in sorted_rows:
 
             current_timestamp = int(row[0])
 
@@ -122,9 +130,11 @@ def get_time_splits(passed_params = {None}):
                 if current_timestamp < timespan[0] or current_timestamp > timespan[1]:
                     continue
 
+            row_count += 1
             if current_timestamp > last_timestamp:
-                last_timestamp = current_timestamp + timespan
-                splits.append((current_timestamp, last_timestamp))
+                last_timestamp = current_timestamp + split_timespan
+                splits.append((current_timestamp, last_timestamp,row_count))
+                row_count = 0
 
     return splits
 

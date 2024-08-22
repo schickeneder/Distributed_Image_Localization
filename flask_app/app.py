@@ -111,9 +111,9 @@ def remove_one2():
     #           "timespan": 1675273138, "results_type": "remove_one",
     #           "coordinates" : [(37.610424, -122.531204),(37.808156, -122.336884)]}
 
-    params = {"max_num_epochs": 20, "num_training_repeats": 1, "batch_size": 64, "rx_blacklist": [0],
+    params = {"max_num_epochs": 50, "num_training_repeats": 1, "batch_size": 64, "rx_blacklist": [0],
               'func_list': ["MSE","COM","EMD"], "data_filename": "datasets/helium_SD/SEA30_helium.csv",
-              "results_type": "remove_one", "coordinates" : [(47.556372, -122.360229), (47.63509, -122.281609)]}
+              "results_type": "remove_one_results", "coordinates" : [(47.556372, -122.360229), (47.63509, -122.281609)]}
 
 
 
@@ -136,10 +136,22 @@ def split_time_span():
     span = 2628288 # one month at a time seems like it should be good enough to see changes, but not too much compute
 
 
-    params = {"max_num_epochs": 1, "num_training_repeats": 1, "batch_size": 64, "rx_blacklist": [0], "splits": [],
-              'func_list': ["MSE","COM","EMD"], "data_filename": "datasets/helium_SD/SEA30_helium.csv",
-              "split_timespan": span, "results_type": "remove_one",
-              "coordinates" : [(47.556372, -122.360229), (47.63509, -122.281609)]}
+    # params = {"max_num_epochs": 50, "num_training_repeats": 1, "batch_size": 64, "rx_blacklist": [0], "splits": [],
+    #           'func_list': ["MSE","COM","EMD"], "data_filename": "datasets/helium_SD/SEA30_helium.csv",
+    #           "split_timespan": span, "results_type": "split_timespan_results",
+    #           "coordinates" : [(47.556372, -122.360229), (47.63509, -122.281609)]}
+
+    # # haven't done yet
+    params = {"max_num_epochs": 50, "num_training_repeats": 1, "batch_size": 64, "rx_blacklist": [0],"splits": [],
+              'func_list': ["MSE","COM","EMD"], "data_filename": "datasets/helium_SD/SF30_helium.csv",
+              "split_timespan": span, "results_type": "split_timespan_results",
+              "coordinates" : [(37.610424, -122.531204),(37.808156, -122.336884)]}
+
+    # params = {"max_num_epochs": 50, "num_training_repeats": 1, "batch_size": 64, "rx_blacklist": [0],"splits": [],
+    #           'func_list': ["MSE","COM","EMD"], "data_filename": "datasets/helium_SD/SD30_helium.csv",
+    #           "split_timespan": span, "results_type": "split_timespan_results",
+    #           "coordinates" : [(32.732419, -117.247639),(32.796799, -117.160606)]}
+
 
     # task1 returns the timestamps of the samples corresponding to each split and stores ind "splits" list
     task1 = celery.signature("tasks.get_time_splits",args=[params],options={"queue":"GPU_queue"})
