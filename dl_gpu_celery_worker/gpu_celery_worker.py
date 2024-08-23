@@ -12,12 +12,15 @@ def make_celery():
         backend=os.environ.get('REDIS_URL', 'redis://redis:6379/0'),
         broker=os.environ.get('REDIS_URL', 'redis://redis:6379/0'),
         result_expires=0,
+        worker_prefetch_multiplier=1, # only allow workers to take 1 task at a time
+        task_acks_late=False, # this is the global default, can enable for individual tasks with "acks_late=True"
+        worker_concurrency=1, # this may be redundant if already included in the run instruction
         task_queues= {
             'GPU_queue': {
                 'exchange': 'GPU_queue',
                 'exchange_type': 'direct',
                 'binding_key': 'GPU_queue',
-            }
+            },
         }
     )
     print("making celery worker")
@@ -82,7 +85,7 @@ def split_and_group_timespan(params):
 
 # Added acks_late so acknowledgement occurs after completion, with a time limit of 20 min
 # this will re-queue the task if a worker is interrupted (e.g. a vast machine is outbid and removed during processing)
-@celery.task(name='tasks.group_remove_one2',acks_late=True,time_limit=1200)
+@celery.task(name='tasks.group_remove_one2',acks_late=True, time_limit=2400)
 def group_remove_one2(params):
     params = {**params,"results_type" : "remove_one_results"}
     print(f"****args for tasks.group_remove_one2: {params}")
@@ -90,7 +93,7 @@ def group_remove_one2(params):
     #time.sleep(random.randrange(0,15))
     return res
 
-@celery.task(name='tasks.group_split_timespans',acks_late=True,time_limit=1200)
+@celery.task(name='tasks.group_split_timespans',acks_late=True, time_limit=2400)
 def group_split_timespans(params):
     params = {**params,"results_type" : "split_timespan_results"}
     print(f"****args for tasks.group_split_timespans: {params}")
