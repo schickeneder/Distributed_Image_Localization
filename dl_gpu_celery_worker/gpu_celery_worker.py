@@ -48,7 +48,7 @@ def find_dataset(file_path):
         file_data = redis_client.get(redis_file_key)
         if file_data:
             # Save the file locally
-            with open(file_path, 'wb') as f:
+            with open(file_path, 'w') as f:
                 f.write(file_data)
             print(f"File saved to {file_path}.")
             return True
