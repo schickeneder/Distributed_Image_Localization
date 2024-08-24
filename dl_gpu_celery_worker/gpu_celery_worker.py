@@ -28,25 +28,6 @@ def make_celery():
 
 celery = make_celery()
 
-@celery.task(name='tasks.gpu_test')
-def gpu_test():
-    result = subprocess.run(['nvidia-smi'], capture_output=True, text=True)
-    print('stdout:', result.stdout)
-    print('stderr:', result.stderr)
-    print('Return code:', result.returncode)
-    return result.stdout
-
-@celery.task(name='tasks.get_rx_lats_from_ds9')
-def get_rx_lats_from_ds9(data):
-    time.sleep(random.randrange(0,15))
-    return data
-
-
-@celery.task(name='tasks.helium_train')
-def helium_train(data):
-    time.sleep(random.randrange(0,15))
-    return data
-
 # Retrieves the list of rx_lats for all nodes in the dataset specified in params
 # Populates rx_blacklist with this list for use in subsequent functions
 @celery.task (name='tasks.get_rx_lats')

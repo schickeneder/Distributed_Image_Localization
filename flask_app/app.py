@@ -141,7 +141,6 @@ def split_time_span():
     #           "split_timespan": span, "results_type": "split_timespan_results",
     #           "coordinates" : [(47.556372, -122.360229), (47.63509, -122.281609)]}
 
-    # # haven't done yet
     params = {"max_num_epochs": 50, "num_training_repeats": 1, "batch_size": 64, "rx_blacklist": [0],"splits": [],
               'func_list': ["MSE","COM","EMD"], "data_filename": "datasets/helium_SD/SF30_helium.csv",
               "split_timespan": span, "results_type": "split_timespan_results",
