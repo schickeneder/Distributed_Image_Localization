@@ -1,5 +1,6 @@
 from celery import Celery, chord, group
 import os, sys
+import redis
 import subprocess
 import time
 import random
@@ -28,17 +29,50 @@ def make_celery():
 
 celery = make_celery()
 
+redis_state = os.environ.get('REDIS_STATE')
+redis_host = os.environ.get('REDIS_HOST')
+redis_pass = os.environ.get('REDIS_PASS')
+
+if redis_state == "local": # mean it's being run locally
+    redis_client = redis.Redis(host=redis_host, port=6379, db=0,decode_responses=True)#,
+                                 #username="default", password=app.config['REDIS_PASS'])
+else: # otherwise it should be remote
+    redis_client = redis.Redis(host=redis_host, port=6379, db=0,decode_responses=True,
+                               username="default", password=redis_pass)
+
+def find_dataset(file_path):
+    if os.path.exists(file_path):
+        return True
+    else:
+        redis_file_key = f'file:{file_path}'
+        file_data = redis_client.get(redis_file_key)
+        if file_data:
+            # Save the file locally
+            with open(file_path, 'wb') as f:
+                f.write(file_data)
+            print(f"File saved to {file_path}.")
+            return True
+        else:
+            print(f"No file found in Redis with key {redis_file_key}")
+            return False
+
+
+
 # Retrieves the list of rx_lats for all nodes in the dataset specified in params
 # Populates rx_blacklist with this list for use in subsequent functions
 @celery.task (name='tasks.get_rx_lats')
 def get_rx_lats_task(params):
-    rx_lats = helium_training.get_rx_lats(params) # TODO for debug, limit rx_lats to 3
+    # TODO: make sure dataset is present
+    find_dataset(params['data_filename'])
+    rx_lats = helium_training.get_rx_lats(params)
     print(f"****args for task.get_rx_lats: {params}")
     params['task_id'] = get_rx_lats_task.request.id
     return {**params,"rx_blacklist": rx_lats} # keep them there for purposes of passing args
 
 @celery.task(name='tasks.get_time_splits')
 def get_time_splits(params):
+    # TODO: make sure dataset is present
+    find_dataset(params['data_filename'])
     time_splits = helium_training.get_time_splits(params)
     print(f"****args for tasks.get_time_splits: {params}")
     return {**params,"splits": time_splits}

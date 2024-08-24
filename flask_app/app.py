@@ -34,6 +34,22 @@ else: # otherwise it should be remote
     redis_client = redis.Redis(host=app.config['REDIS_HOST'], port=6379, db=0,decode_responses=True,
                                  username="default", password=app.config['REDIS_PASS'])
 
+
+def cache_datafile(file_path):
+    redis_file_key = f'file:{file_path}'
+
+    try:
+        with open(file_path, 'rb') as f:
+            file_data = f.read()
+            redis_client.set(redis_file_key, file_data)
+
+            redis_client.set(file_path, file_data)
+    except Exception as e:
+        print(f"Encountered exception trying to cache datafile {e}")
+        return False
+    return True
+
+
 @app.route('/')
 def hello_world():
     return 'Hello, World!'
@@ -115,7 +131,7 @@ def remove_one2():
               'func_list': ["MSE","COM","EMD"], "data_filename": "datasets/helium_SD/SEA30_helium.csv",
               "results_type": "remove_one_results", "coordinates" : [(47.556372, -122.360229), (47.63509, -122.281609)]}
 
-
+    cache_datafile(params["data_filename"])
 
     task1 = celery.signature("tasks.get_rx_lats",args=[params],options={"queue":"GPU_queue"})
     task2 = celery.signature("tasks.split_and_group",options={"queue":"GPU_queue"})
@@ -141,15 +157,17 @@ def split_time_span():
     #           "split_timespan": span, "results_type": "split_timespan_results",
     #           "coordinates" : [(47.556372, -122.360229), (47.63509, -122.281609)]}
 
-    params = {"max_num_epochs": 50, "num_training_repeats": 1, "batch_size": 64, "rx_blacklist": [0],"splits": [],
-              'func_list': ["MSE","COM","EMD"], "data_filename": "datasets/helium_SD/SF30_helium.csv",
-              "split_timespan": span, "results_type": "split_timespan_results",
-              "coordinates" : [(37.610424, -122.531204),(37.808156, -122.336884)]}
-
     # params = {"max_num_epochs": 50, "num_training_repeats": 1, "batch_size": 64, "rx_blacklist": [0],"splits": [],
-    #           'func_list': ["MSE","COM","EMD"], "data_filename": "datasets/helium_SD/SD30_helium.csv",
+    #           'func_list': ["MSE","COM","EMD"], "data_filename": "datasets/helium_SD/SF30_helium.csv",
     #           "split_timespan": span, "results_type": "split_timespan_results",
-    #           "coordinates" : [(32.732419, -117.247639),(32.796799, -117.160606)]}
+    #           "coordinates" : [(37.610424, -122.531204),(37.808156, -122.336884)]}
+
+    params = {"max_num_epochs": 50, "num_training_repeats": 1, "batch_size": 64, "rx_blacklist": [0],"splits": [],
+              'func_list': ["MSE","COM","EMD"], "data_filename": "datasets/helium_SD/SD30_helium.csv",
+              "split_timespan": span, "results_type": "split_timespan_results",
+              "coordinates" : [(32.732419, -117.247639),(32.796799, -117.160606)]}
+
+    cache_datafile(params["data_filename"])
 
 
     # task1 returns the timestamps of the samples corresponding to each split and stores ind "splits" list
