@@ -7,6 +7,7 @@ from dataset import RSSLocDataset
 from models import CoMLoss, SlicedEarthMoversDistance
 import csv
 from coordinates import HELIUMSD_LATLON
+import os
 
 from attacker import batch_wrapper, get_all_attack_preds_without_grad
 
@@ -198,6 +199,10 @@ def main_process(passed_params = {None}):
     else:
         timespan = 0 # use all samples newer than 0 (i.e. use all)
 
+    if not os.path.exists("models"):
+        os.makedirs("models")
+    if not os.path.exists("results"):
+        os.makedirs("results")
 
     global dataset_index
     global meter_scale
