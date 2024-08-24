@@ -111,6 +111,7 @@ def group_remove_one2(params):
 @celery.task(name='tasks.group_split_timespans',acks_late=True, time_limit=2400)
 def group_split_timespans(params):
     params = {**params,"results_type" : "split_timespan_results"}
+    find_dataset(params['data_filename'])
     print(f"****args for tasks.group_split_timespans: {params}")
     res = helium_training.main_process(params)
     #time.sleep(random.randrange(0,15))
