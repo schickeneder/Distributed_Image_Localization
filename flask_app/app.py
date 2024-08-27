@@ -5,6 +5,7 @@ import os
 import redis
 import hashlib
 from datetime import datetime
+import pandas as pd
 
 
 app = Flask(__name__)
@@ -34,6 +35,37 @@ else: # otherwise it should be remote
     redis_client = redis.Redis(host=app.config['REDIS_HOST'], port=6379, db=0,decode_responses=True,
                                  username="default", password=app.config['REDIS_PASS'])
 
+# TODO: load full helium coords list into memory and see how quickly it can filter out (in real time?) datasets based on coords
+
+
+# store the global dataset in memory so we can quickly select subsets when requested
+def load_global_dataset(filepath):
+
+    dataset = pd.read_csv(filepath)
+    column_names = dataset.columns.tolist()
+
+    print(column_names)
+
+    column_names[0] = 'time'
+    column_names[1] = 'lat1'
+    column_names[2] = 'lon1'
+    column_names[3] = 'lat2'
+    column_names[4] = 'lon2'
+    column_names[5] = 'txpwr'
+    column_names[6] = 'rxpwr'
+
+    dataset.columns = column_names
+    return dataset
+
+# geofilter global dataset to produce regional subset
+def filter_coordinates(df, coordinates):
+    bottom_left, top_right = (coordinates)
+    return df[
+        (df['lat1'] >= bottom_left[0]) & (df['lat1'] <= top_right[0]) &
+        (df['lon1'] >= bottom_left[1]) & (df['lon1'] <= top_right[1]) &
+        (df['lat2'] >= bottom_left[0]) & (df['lat2'] <= top_right[0]) &
+        (df['lon2'] >= bottom_left[1]) & (df['lon2'] <= top_right[1])
+    ]
 
 def cache_datafile(file_path):
     redis_file_key = f'file:{file_path}'
@@ -53,6 +85,13 @@ def cache_datafile(file_path):
 @app.route('/')
 def hello_world():
     return 'Hello, World!'
+
+
+@app.route('/get_dataset/<float:lat1>/<float:lon1>/<float:lat2>/<float:lon2>')
+def get_dataset(lat1, lon1, lat2, lon2):
+    global global_dataset
+    local_dataset = filter_coordinates(global_dataset, ((lat1, lon1), (lat2, lon2)))
+    return str(local_dataset)
 
 @app.route('/longtask')
 def longtask():
@@ -257,4 +296,8 @@ def log_results(results):
 
 
 if __name__ == '__main__':
+    filepath = "/datasets/global/all_data.csv"
+    print("Loading global dataset..")
+    global_dataset = load_global_dataset(filepath)
+    print("Global dataset loaded")
     app.run(host='0.0.0.0',debug=True)

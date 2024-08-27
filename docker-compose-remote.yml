@@ -4,6 +4,8 @@ services:
 
   flask:
     container_name: flask
+    volumes:
+      - ${DATA_DIRECTORY}:/datasets/global/all_data.csv:ro
     build:
       context: ./flask_app
     ports:
