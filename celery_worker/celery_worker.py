@@ -41,15 +41,18 @@ def log_results(results):
 
     print("Printing best case train_error for each segment")
 
-    if name == "results":
-        for span in results["data"]:
-            min_error = 9999.0
-            span_key = list(span.keys())[0]
-            for result in span[span_key]:
-                if float(result[-1]) < min_error:
-                    min_error = float(result[-1])
-                    min_key = span_key
-            print(f"{span_key} : {min_error}")
+    try:
+        if name == "results":
+            for span in results["data"]:
+                min_error = 9999.0
+                span_key = list(span.keys())[0]
+                for result in span[span_key]:
+                    if float(result[-1]) < min_error:
+                        min_error = float(result[-1])
+                        min_key = span_key
+                print(f"{span_key} : {min_error}")
+    except Exception as e:
+        print(f"Couldn't print results because {e}")
 
 
 

@@ -189,6 +189,9 @@ def generate_datasets():
               'func_list': ["MSE","COM","EMD"], "data_filename": "",
               "results_type": "default", "coordinates" : [(47.556372, -122.360229), (47.63509, -122.281609)]}
 
+    if not os.path.exists('/datasets/generated'):
+        os.makedirs('/datasets/generated')
+
     if global_dataset_loaded:
         for row in cities_data_50:
             lat,lon = row[-2:]
@@ -196,7 +199,7 @@ def generate_datasets():
             local_dataset = filter_coordinates(global_dataset,
                                                ((float(bl_coords[0]), float(bl_coords[1])),
                                                 (float(tr_coords[0]), float(tr_coords[1]))))
-            data_filename = "datasets/" + str(row[1]) + str(int(square_length/1000)) + '.csv' # <city abbrev><square_length in km>
+            data_filename = "datasets/generated/" + str(row[1]) + str(int(square_length/1000)) + '.csv' # <city abbrev><square_length in km>
             local_dataset.to_csv(data_filename, index=False)
             cache_datafile(data_filename)
 
