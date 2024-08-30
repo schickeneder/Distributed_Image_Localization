@@ -46,8 +46,8 @@ def find_dataset(file_path):
         print(f"Found dataset in {file_path}")
         return True
     else:
-        if not os.path.exists('/datasets/generated'):
-            os.makedirs('/datasets/generated')
+        if not os.path.exists('datasets/generated'):
+            os.makedirs('datasets/generated')
         redis_file_key = f'file:{file_path}'
         file_data = redis_client.get(redis_file_key)
         if file_data:
