@@ -133,6 +133,7 @@ def process_group_results(list_results):
 def process_group_results(params):
     params = {**params,"results_type" : "default"}
     print(f"****args for tasks.train_one_and_log: {params}, logging results")
+    find_dataset(params['data_filename']) # download from redis cache if not present
     res = helium_training.main_process(params)
     dict_results = {"results_type": "results", "params": params,"data": res}
     task1 = celery.signature("tasks.log_results", args=[dict_results], options={"queue": "log_queue"})

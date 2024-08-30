@@ -196,17 +196,18 @@ def generate_datasets():
             local_dataset = filter_coordinates(global_dataset,
                                                ((float(bl_coords[0]), float(bl_coords[1])),
                                                 (float(tr_coords[0]), float(tr_coords[1]))))
-            data_filename = "datasets/" + str(row[1]) + str(square_length/1000) + '.csv' # <city abbrev><square_length in km>
+            data_filename = "datasets/" + str(row[1]) + str(int(square_length/1000)) + '.csv' # <city abbrev><square_length in km>
             local_dataset.to_csv(data_filename, index=False)
-            cache_datafile(params["data_filename"])
+            cache_datafile(data_filename)
 
             task1 = celery.signature("tasks.train_one_and_log",
                                      args=[{**params,"data_filename": data_filename,
                                             "coordinates": [bl_coords, tr_coords]}],
-                                     options={"queue": "gpu_queue"})
+                                     options={"queue": "GPU_queue"})
             task1.apply_async()
 
         return "Processed cities list and start tasks."
+
 
 
     else:
