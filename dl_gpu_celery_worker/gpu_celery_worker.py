@@ -44,6 +44,8 @@ def find_dataset(file_path):
     if os.path.exists(file_path):
         return True
     else:
+        if not os.path.exists('/datasets/generated'):
+            os.makedirs('/datasets/generated')
         redis_file_key = f'file:{file_path}'
         file_data = redis_client.get(redis_file_key)
         if file_data:
@@ -130,7 +132,7 @@ def process_group_results(list_results):
 
 # used to process and log a single run
 @celery.task(name='tasks.train_one_and_log', acks_late=True)
-def process_group_results(params):
+def train_one_and_log(params):
     params = {**params,"results_type" : "default"}
     print(f"****args for tasks.train_one_and_log: {params}, logging results")
     find_dataset(params['data_filename']) # download from redis cache if not present
