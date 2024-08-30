@@ -1,4 +1,4 @@
-from flask import Flask,jsonify,request,render_template,current_app
+from flask import Flask,jsonify,request,render_template,current_app,flash
 from celery import Celery, group, chain, chord
 import json
 import os
@@ -6,6 +6,9 @@ import redis
 import hashlib
 from datetime import datetime
 import pandas as pd
+import numpy as np
+import threading
+import math
 
 
 app = Flask(__name__)
@@ -15,6 +18,8 @@ app.config['REDIS_HOST'] = os.environ.get('REDIS_HOST')
 app.config['REDIS_PASS'] = os.environ.get('REDIS_PASS')
 app.config['REDIS_STATE'] = os.environ.get('REDIS_STATE')
 app.config['GROUP_JOBS'] = {} # make a dict to support other metadata like start time
+app.config['UPLOAD_FOLDER'] = 'uploads'
+app.config['ALLOWED_EXTENSIONS'] = ['csv']
 
 def make_celery(app):
     celery = Celery(
@@ -35,27 +40,37 @@ else: # otherwise it should be remote
     redis_client = redis.Redis(host=app.config['REDIS_HOST'], port=6379, db=0,decode_responses=True,
                                  username="default", password=app.config['REDIS_PASS'])
 
+if not os.path.exists(app.config['UPLOAD_FOLDER']):
+    os.makedirs(app.config['UPLOAD_FOLDER'])
+
+
 # TODO: load full helium coords list into memory and see how quickly it can filter out (in real time?) datasets based on coords
 
 
 # store the global dataset in memory so we can quickly select subsets when requested
 def load_global_dataset(filepath):
+    global global_dataset_loaded
+    global global_dataset
+    try:
+        dataset = pd.read_csv(filepath)
+        column_names = dataset.columns.tolist()
 
-    dataset = pd.read_csv(filepath)
-    column_names = dataset.columns.tolist()
+        print(column_names)
 
-    print(column_names)
+        column_names[0] = 'time'
+        column_names[1] = 'lat1'
+        column_names[2] = 'lon1'
+        column_names[3] = 'lat2'
+        column_names[4] = 'lon2'
+        column_names[5] = 'txpwr'
+        column_names[6] = 'rxpwr'
 
-    column_names[0] = 'time'
-    column_names[1] = 'lat1'
-    column_names[2] = 'lon1'
-    column_names[3] = 'lat2'
-    column_names[4] = 'lon2'
-    column_names[5] = 'txpwr'
-    column_names[6] = 'rxpwr'
+        dataset.columns = column_names
+        global_dataset_loaded = True
+        global_dataset = dataset
+    except Exception as e:
+        print(f"Could not load dataset {filepath} because {e}")
 
-    dataset.columns = column_names
-    return dataset
 
 # geofilter global dataset to produce regional subset
 def filter_coordinates(df, coordinates):
@@ -69,11 +84,12 @@ def filter_coordinates(df, coordinates):
 
 def cache_datafile(file_path):
     redis_file_key = f'file:{file_path}'
+    expiration_time = 60 * 60 * 24 # 24 hours in seconds
 
     try:
         with open(file_path, 'rb') as f:
             file_data = f.read()
-            redis_client.set(redis_file_key, file_data)
+            redis_client.set(redis_file_key, file_data, ex=expiration_time)
 
             redis_client.set(file_path, file_data)
     except Exception as e:
@@ -81,17 +97,152 @@ def cache_datafile(file_path):
         return False
     return True
 
+def allowed_file(filename):
+    return '.' in filename and \
+           filename.rsplit('.', 1)[1].lower() in app.config['ALLOWED_EXTENSIONS']
+
+# returns BL TR corner coordinates of a square centered at lat,lon
+def get_square_corners(lat, lon, side_length):
+    # Earth's radius in meters
+    R = 6378137.0
+
+    # Convert the side length from meters to degrees
+    d_lat = (side_length / 2) / R * (180 / math.pi)
+    d_lon = (side_length / 2) / (R * math.cos(math.pi * lat / 180)) * (180 / math.pi)
+
+    # Bottom-left coordinates
+    bottom_left_lat = lat - d_lat
+    bottom_left_lon = lon - d_lon
+
+    # Top-right coordinates
+    top_right_lat = lat + d_lat
+    top_right_lon = lon + d_lon
+
+    return (bottom_left_lat, bottom_left_lon), (top_right_lat, top_right_lon)
+
 
 @app.route('/')
 def hello_world():
     return 'Hello, World!'
 
+@app.route('/generate_datasets')
+def generate_datasets():
+    global global_dataset
+    global global_dataset_loaded
 
-@app.route('/get_dataset/<float:lat1>/<float:lon1>/<float:lat2>/<float:lon2>')
+    square_length = 8000 # 8000 meters ~ 5 miles
+
+    cities_data_50 = [
+        ("New York City, NY", "NYC", 40.7128, -74.0060),
+        ("Los Angeles, CA", "LA", 34.0522, -118.2437),
+        ("Chicago, IL", "CHI", 41.8781, -87.6298),
+        ("Houston, TX", "HOU", 29.7604, -95.3698),
+        ("Phoenix, AZ", "PHX", 33.4484, -112.0740),
+        ("Philadelphia, PA", "PHL", 39.9526, -75.1652),
+        ("San Antonio, TX", "SAT", 29.4241, -98.4936),
+        ("San Diego, CA", "SD", 32.7157, -117.1611),
+        ("Dallas, TX", "DAL", 32.7767, -96.7970),
+        ("San Jose, CA", "SJ", 37.3382, -121.8863),
+        ("Austin, TX", "AUS", 30.2672, -97.7431),
+        ("Jacksonville, FL", "JAX", 30.3322, -81.6557),
+        ("Fort Worth, TX", "FTW", 32.7555, -97.3308),
+        ("Columbus, OH", "COL", 39.9612, -82.9988),
+        ("Charlotte, NC", "CLT", 35.2271, -80.8431),
+        ("San Francisco, CA", "SF", 37.7749, -122.4194),
+        ("Indianapolis, IN", "IND", 39.7684, -86.1581),
+        ("Seattle, WA", "SEA", 47.6062, -122.3321),
+        ("Denver, CO", "DEN", 39.7392, -104.9903),
+        ("Washington, DC", "DC", 38.9072, -77.0369),
+        ("Boston, MA", "BOS", 42.3601, -71.0589),
+        ("El Paso, TX", "ELP", 31.7619, -106.4850),
+        ("Nashville, TN", "NSH", 36.1627, -86.7816),
+        ("Detroit, MI", "DET", 42.3314, -83.0458),
+        ("Oklahoma City, OK", "OKC", 35.4676, -97.5164),
+        ("Portland, OR", "PDX", 45.5152, -122.6784),
+        ("Las Vegas, NV", "LV", 36.1699, -115.1398),
+        ("Memphis, TN", "MEM", 35.1495, -90.0490),
+        ("Louisville, KY", "LOU", 38.2527, -85.7585),
+        ("Baltimore, MD", "BAL", 39.2904, -76.6122),
+        ("Milwaukee, WI", "MKE", 43.0389, -87.9065),
+        ("Albuquerque, NM", "ABQ", 35.0844, -106.6504),
+        ("Tucson, AZ", "TUC", 32.2226, -110.9747),
+        ("Fresno, CA", "FRE", 36.7378, -119.7871),
+        ("Mesa, AZ", "MES", 33.4152, -111.8315),
+        ("Sacramento, CA", "SAC", 38.5816, -121.4944),
+        ("Atlanta, GA", "ATL", 33.7490, -84.3880),
+        ("Kansas City, MO", "KC", 39.0997, -94.5786),
+        ("Colorado Springs, CO", "COS", 38.8339, -104.8214),
+        ("Miami, FL", "MIA", 25.7617, -80.1918),
+        ("Raleigh, NC", "RAL", 35.7796, -78.6382),
+        ("Omaha, NE", "OMA", 41.2565, -95.9345),
+        ("Long Beach, CA", "LB", 33.7701, -118.1937),
+        ("Virginia Beach, VA", "VB", 36.8529, -75.9780),
+        ("Oakland, CA", "OAK", 37.8044, -122.2711),
+        ("Minneapolis, MN", "MIN", 44.9778, -93.2650),
+        ("Tulsa, OK", "TUL", 36.1540, -95.9928),
+        ("Tampa, FL", "TPA", 27.9506, -82.4572),
+        ("Arlington, TX", "ARL", 32.7357, -97.1081),
+        ("New Orleans, LA", "NO", 29.9511, -90.0715)
+    ]
+
+    params = {"max_num_epochs": 50, "num_training_repeats": 1, "batch_size": 64, "rx_blacklist": [0],
+              'func_list': ["MSE","COM","EMD"], "data_filename": "",
+              "results_type": "default", "coordinates" : [(47.556372, -122.360229), (47.63509, -122.281609)]}
+
+    if global_dataset_loaded:
+        for row in cities_data_50:
+            lat,lon = row[-2:]
+            bl_coords, tr_coords = get_square_corners(lat,lon,square_length)
+            local_dataset = filter_coordinates(global_dataset,
+                                               ((float(bl_coords[0]), float(bl_coords[1])),
+                                                (float(tr_coords[0]), float(tr_coords[1]))))
+            data_filename = "datasets/" + str(row[1]) + str(square_length/1000) + '.csv' # <city abbrev><square_length in km>
+            local_dataset.to_csv(data_filename, index=False)
+            cache_datafile(params["data_filename"])
+
+            task1 = celery.signature("tasks.train_one_and_log",
+                                     args=[{**params,"data_filename": data_filename,
+                                            "coordinates": [bl_coords, tr_coords]}],
+                                     options={"queue": "gpu_queue"})
+            task1.apply_async()
+
+        return "Processed cities list and start tasks."
+
+
+    else:
+        return "Waiting for global_dataset to load.."
+# @app.route('/upload_file', methods=['GET', 'POST'])
+# def upload_file():
+#     if request.method == 'POST':
+#         # Check if the post request has the file part
+#         if 'file' not in request.files:
+#             flash('No file part')
+#             return redirect(request.url)
+#         file = request.files['file']
+#         # If user does not select a file, the browser submits an empty part without filename
+#         if file.filename == '':
+#             flash('No selected file')
+#             return redirect(request.url)
+#         if file and allowed_file(file.filename):
+#             filename = file.filename
+#             file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+#             flash('File successfully uploaded')
+#             return redirect(url_for('process_file', filename=filename))
+#     return render_template('index.html')
+
+@app.route('/get_dataset/<lat1>/<lon1>/<lat2>/<lon2>')
 def get_dataset(lat1, lon1, lat2, lon2):
     global global_dataset
-    local_dataset = filter_coordinates(global_dataset, ((lat1, lon1), (lat2, lon2)))
-    return str(local_dataset)
+    global global_dataset_loaded
+
+    if global_dataset_loaded:
+        local_dataset = filter_coordinates(global_dataset,
+                                           ((float(lat1), float(lon1)), (float(lat2), float(lon2))))
+        #local_dataset.to_csv(outfile_name, index=False)
+
+        return local_dataset.to_string()
+    else:
+        return "Waiting for global_dataset to load.."
 
 @app.route('/longtask')
 def longtask():
@@ -297,7 +448,8 @@ def log_results(results):
 
 if __name__ == '__main__':
     filepath = "/datasets/global/all_data.csv"
-    print("Loading global dataset..")
-    global_dataset = load_global_dataset(filepath)
-    print("Global dataset loaded")
+    print("Loading global dataset..",flush=True) # print immediately
+    global_dataset_loaded = False # flag updates when global_dataset load completes
+    global_dataset = None # placeholder for global variable
+    threading.Thread(target=load_global_dataset, args=(filepath,)).start()
     app.run(host='0.0.0.0',debug=True)

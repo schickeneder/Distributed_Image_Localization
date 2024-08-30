@@ -100,6 +100,7 @@ def split_and_group_timespan(params):
 
 # Added acks_late so acknowledgement occurs after completion, with a time limit of 20 min
 # this will re-queue the task if a worker is interrupted (e.g. a vast machine is outbid and removed during processing)
+#
 @celery.task(name='tasks.group_remove_one2',acks_late=True, time_limit=2400)
 def group_remove_one2(params):
     params = {**params,"results_type" : "remove_one_results"}
@@ -122,6 +123,18 @@ def process_group_results(list_results):
     print(f"****args for tasks.process_group_results: {list_results}, logging results")
     # can do whatever other processing we want with the results here, but we will also log them.
     dict_results = {"results_type": "results", "data": list_results}
+    task1 = celery.signature("tasks.log_results", args=[dict_results], options={"queue": "log_queue"})
+    task1.apply_async()
+    # TODO: add the next task for all the percentiles results to get rx_blacklists
+    return dict_results
+
+# used to process and log a single run
+@celery.task(name='tasks.train_one_and_log', acks_late=True)
+def process_group_results(params):
+    params = {**params,"results_type" : "default"}
+    print(f"****args for tasks.train_one_and_log: {params}, logging results")
+    res = helium_training.main_process(params)
+    dict_results = {"results_type": "results", "params": params,"data": res}
     task1 = celery.signature("tasks.log_results", args=[dict_results], options={"queue": "log_queue"})
     task1.apply_async()
     # TODO: add the next task for all the percentiles results to get rx_blacklists
