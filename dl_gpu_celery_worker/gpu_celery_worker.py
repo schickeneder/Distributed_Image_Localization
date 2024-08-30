@@ -41,7 +41,9 @@ else: # otherwise it should be remote
                                username="default", password=redis_pass)
 
 def find_dataset(file_path):
+    print(f"Looking for dataset in {file_path}")
     if os.path.exists(file_path):
+        print(f"Found dataset in {file_path}")
         return True
     else:
         if not os.path.exists('/datasets/generated'):
