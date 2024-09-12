@@ -34367,8 +34367,10 @@ def generate_datasets():
             cache_datafile(data_filename)
 
             # this next line enables the denylist
+            rx_blacklist = [0]
             # uncomment to enable denylist.
             #rx_blacklist = filter_deny_lat(bl_coords[0],tr_coords[0])
+
 
             task1 = celery.signature("tasks.train_one_and_log",
                                      args=[{**params,"data_filename": data_filename,
