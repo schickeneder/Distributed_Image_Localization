@@ -4,6 +4,8 @@ import rasterio
 import matplotlib.pyplot as plt
 import zipfile
 import csv
+import threading
+import io
 
 SRTM_DICT = {'SRTM1': 3601, 'SRTM3': 1201}
 
@@ -21,7 +23,7 @@ RAW_CITIES = r"cities15000_raw.txt"
 # create list of dictionaries for each city
 def read_city_list(file_path=RAW_CITIES):
     cities = []
-    with open(file_path, mode='r', encoding='utf-8') as file:
+    with open(file_path, mode='r', encoding = "ISO-8859-1") as file:
         reader = csv.reader(file, delimiter='\t')  # Use tab delimiter
         next(reader)  # Skip header if present
         for row in reader:
@@ -72,6 +74,34 @@ def generate_elev_stdev_list(cities):
     return new_list
 
 
+def process_city(city, results, index):
+    cityname = city['name']
+    country = city['country']
+    lat = float(city['latitude'])
+    lon = float(city['longitude'])
+    result = read_elevation_from_zip_file(lat, lon)
+    if result:
+        stdev = result[1]
+        results[index] = [cityname, country, lat, lon, stdev]
+
+
+def generate_elev_stdev_list2(cities):
+    total = len(cities)
+    results = [None] * total
+    threads = []
+
+    for index, city in enumerate(cities):
+        if index % 1000 == 0:
+            print(f"{index}/{total} rows processed")
+        thread = threading.Thread(target=process_city, args=(city, results, index))
+        thread.start()
+        threads.append(thread)
+
+    for thread in threads:
+        thread.join()
+
+    # Filter out None values in case some cities didn't return results
+    return [result for result in results if result is not None]
 
 def read_elevation_from_zip_file(lat, lon, path=SRTM_DIR):
     if lat > 0:
@@ -96,19 +126,24 @@ def read_elevation_from_zip_file(lat, lon, path=SRTM_DIR):
     try:
         with zipfile.ZipFile(zip_path, 'r') as zip_ref:
             with zip_ref.open(target_filename) as hgt_data:
-                with open('tmp', 'wb') as output_file:
-                    output_file.write(hgt_data.read())
-                elevations = np.fromfile(
-                    'tmp',  # binary data
-                    np.dtype('>i2'),  # data type
-                    SAMPLES * SAMPLES  # length
-                ).reshape((SAMPLES, SAMPLES))
+                try:
+                    # Read the data into a BytesIO object
+                    byte_stream = io.BytesIO(hgt_data.read())
 
+                    # Read binary data directly from the BytesIO stream
+                    byte_stream.seek(0)  # Make sure to rewind the BytesIO object to the beginning
+                    elevations = np.frombuffer(
+                        byte_stream.getvalue(),  # Get the binary data
+                        dtype=np.dtype('>i2'),  # Data type
+                        count=SAMPLES * SAMPLES  # Length
+                    ).reshape((SAMPLES, SAMPLES))
+
+                except Exception as e:
+                    print(f"Couldn't process {target_filename} and elevations {elevations} of len {len(elevations)} because {e}")
         return elevations, np.std(elevations)
 
-
     except Exception as e:
-        print(f"Couldn't find zip file {target_filename} because {e}")
+        print(f"Couldn't open zip file {target_filename} because {e}")
         return None
 
 
@@ -177,9 +212,9 @@ print(result3,stdev)
 #print(generate_elev_stdev_list(city_list))
 
 cities = read_city_list()
-results = generate_elev_stdev_list(cities)
+results = generate_elev_stdev_list2(cities)
 outfile_name = 'city_elev_stdev.csv'
-with open(outfile_name, 'w', newline='') as file:
+with open(outfile_name, 'w', newline='',encoding = "ISO-8859-1") as file:
     writer = csv.writer(file)
     writer.writerows(results)
 
