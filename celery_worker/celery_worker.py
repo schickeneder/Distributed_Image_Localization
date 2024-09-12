@@ -37,7 +37,7 @@ def log_results(results):
         name = "no_results"
     filename = '/logs/' + datetime.datetime.now().strftime("%Y_%m_%d-%H_%M_%S-") + name + '.txt'
     with open(filename,'a') as file:
-        file.write(str(results["data"])+"\n")
+        file.write(str(results)+"\n")
 
     print("Printing best case train_error for each segment")
 
