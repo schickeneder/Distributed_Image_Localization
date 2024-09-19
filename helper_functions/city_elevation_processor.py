@@ -8,6 +8,7 @@ import threading
 import io
 import re
 import pandas as pd
+import math
 
 SRTM_DICT = {'SRTM1': 3601, 'SRTM3': 1201}
 
@@ -77,18 +78,39 @@ def generate_elev_stdev_list(cities):
         count += 1
     return new_list
 
+# get BL and TR coordinates for a square area centered at lat, lon with length side_length (meters)
+def get_square_corners(lat, lon, side_length=8000):
+    # Earth's radius in meters
+    R = 6378137.0
+
+    # Convert the side length from meters to degrees
+    d_lat = (side_length / 2) / R * (180 / math.pi)
+    d_lon = (side_length / 2) / (R * math.cos(math.pi * lat / 180)) * (180 / math.pi)
+
+    # Bottom-left coordinates
+    bottom_left_lat = lat - d_lat
+    bottom_left_lon = lon - d_lon
+
+    # Top-right coordinates
+    top_right_lat = lat + d_lat
+    top_right_lon = lon + d_lon
+
+    return (bottom_left_lat, bottom_left_lon), (top_right_lat, top_right_lon)
 
 def process_city(city, results, index):
+    geonameid = city['geonameid']
     cityname = city['name']
     country = city['country']
     lat = float(city['latitude'])
     lon = float(city['longitude'])
-    result = read_elevation_from_zip_file(lat, lon)
+#    result = read_elevation_from_zip_file(lat, lon)
+    bl,tr = get_square_corners(lat, lon)
+    result = read_exact_elevation_from_zip_file(bl[0],bl[1],tr[0],tr[1])
     if result:
         stdev_elev = result[1]
         min_elev = result[2]
         max_elev = result[3]
-        results[index] = [cityname, country, lat, lon, stdev_elev, min_elev, max_elev]
+        results[index] = [geonameid,cityname, country, lat, lon, stdev_elev, min_elev, max_elev]
 
 
 def generate_elev_stdev_list2(cities):
@@ -169,86 +191,98 @@ def read_elevation_from_zip_file(lat, lon, path=SRTM_DIR):
 # we are assuming that the area will not span more than 4 tiles.. we can add a check for this somewhere
 # num_tiles is how many on a side we want to consider, default 2, TODO: test with more than 2
 def read_exact_elevation_from_zip_file(lat, lon, lat2, lon2, path=SRTM_DIR, num_tiles=2):
-    if int(lat) == int(lat2) and int(lon) == int(lon2):  # case 1 (default - it's bounded in 1 tile)
-        tile, _, _, _ = read_elevation_from_zip_file(lat, lon, path=path)
+    try:
+        if int(lat) == int(lat2) and int(lon) == int(lon2):  # case 1 (default - it's bounded in 1 tile)
+            tile, _, _, _ = read_elevation_from_zip_file(lat, lon, path=path)
 
-        start_row = SAMPLES + 1 - int(abs(lat2 - int(lat)) * (SAMPLES - 1))
-        end_row = SAMPLES + 1 - int(abs((lat - int(lat)) * (SAMPLES - 1)))
-        start_col = SAMPLES - int(abs((lon - int(lon)) * (SAMPLES - 1)))
-        end_col = SAMPLES - int(abs((lon2 - int(lon)) * (SAMPLES - 1)))
+            # start_row = SAMPLES + 1 - int(abs(lat2 - int(lat)) * (SAMPLES - 1))
+            # end_row = SAMPLES + 1 - int(abs((lat - int(lat)) * (SAMPLES - 1)))
+            # start_col = SAMPLES - int(abs((lon - int(lon)) * (SAMPLES - 1)))
+            # end_col = SAMPLES - int(abs((lon2 - int(lon)) * (SAMPLES - 1)))
 
-        print(start_row, end_row, start_col, end_col)
-        print(len(tile), len(tile[0]))
-
-        selection = tile[start_row:end_row, start_col:end_col]
-
-        print(selection)
-        # selection should already be the correct size
-        return selection, np.std(selection), np.min(selection), np.max(selection)
-
-    lat_diff = int(lat2) - int(lat)
-    lon_diff = int(lon2) - int(lon)
-
-    # just get all 4 tiles even if only need 1 extra. Shouldn't happen often so don't need to worry about speed
-    if lat_diff > 0 or lon_diff > 0:
-        if lat_diff > 2 or lon_diff > 2:
-            print("ERROR: Area exceeds 4 tiles--too large!")
-            return None
-        else:
-            # get all for tiles, regardless of which ones we need..
-            BL_tile, _, _, _ = read_elevation_from_zip_file(lat, lon, path=path)
-            TL_tile, _, _, _ = read_elevation_from_zip_file(lat + 1, lon, path=path)
-            BR_tile, _, _, _ = read_elevation_from_zip_file(lat, lon + 1, path=path)
-            TR_tile, _, _, _ = read_elevation_from_zip_file(lat + 1, lon + 1, path=path)
-
-            BL_tile = BL_tile[1:, :-1]  # trim 1 overlap on top and right row/column
-            TL_tile = TL_tile[:, :-1]  # trim overlap on only right column
-            BR_tile = BR_tile[1:, :]  # trim overlap on only top row
-            # TR_tile no trim needed
-
-            top_combined = np.concatenate((TL_tile, TR_tile), axis=1)
-            bottom_combined = np.concatenate((BL_tile, BR_tile), axis=1)
-
-            combined_tile = np.concatenate((top_combined, bottom_combined), axis=0)
-
-            # start_row = int(abs(lat2-int(lat)) * (SAMPLES-1))
-            # end_row =  SAMPLES * 2 + 1 - int(abs((lat-int(lat)) * (SAMPLES-1)))
-            # start_col = SAMPLES * 2 - int(abs((lon-int(lon)) * (SAMPLES-1)))
-            # end_col =  int(abs((lon2-int(lon)) * (SAMPLES-1)))
-
-            # # works for NE hemisphere
-            # start_row = SAMPLES * 2 + 1 - int((lat2-int(lat)) * (SAMPLES-1))
-            # end_row =  SAMPLES * 2 + 1 - int(((lat-int(lat)) * (SAMPLES-1)))
-            # start_col = int((lon - int(lon))*SAMPLES-1)
-            # end_col =  int(((lon2-int(lon)) * (SAMPLES-1)))
-
-            # # option 3
-            # start_row = SAMPLES * 2 + 1 - int(abs(lat2-int(lat)) * (SAMPLES-1))
-            # end_row =  SAMPLES * 2 + 1 - int(((lat-int(lat)) * (SAMPLES-1)))
-            # start_col = int((lon - int(lon))*SAMPLES-1)
-            # end_col =  int(((lon2-int(lon)) * (SAMPLES-1)))
-
-            # option 4
-            start_row = SAMPLES * num_tiles + 1 - int((lat2 - np.floor(lat)) * (SAMPLES - 1))
-            end_row = SAMPLES * num_tiles + 1 - int((lat - np.floor(lat)) * (SAMPLES - 1))
+            start_row = SAMPLES + 1 - int((lat2 - np.floor(lat)) * (SAMPLES - 1))
+            end_row = SAMPLES + 1 - int((lat - np.floor(lat)) * (SAMPLES - 1))
             start_col = int((lon - np.floor(lon)) * (SAMPLES - 1))
             end_col = int((lon2 - np.floor(lon)) * (SAMPLES - 1))
 
-            # start_row = 3000
-            #end_row =  4000
-            # start_col = 3000
-            #end_col =  4500
-            selection = combined_tile[start_row:end_row, start_col:end_col]
+            #print(start_row, end_row, start_col, end_col)
+            #print(len(tile), len(tile[0]))
 
-            print(lat, lon, lat2, lon2)
-            #print(BL_tile, TL_tile, BR_tile, TR_tile)
-            print(f"combined tile {combined_tile} with lengths {len(combined_tile)} {len(combined_tile[0])}")
-            print(start_row, end_row, start_col, end_col)
-            #print(f"selection {selection}")
+            selection = tile[start_row:end_row, start_col:end_col]
+
+            #print(selection)
             # selection should already be the correct size
-            # return combined_tile, np.std(combined_tile), np.min(combined_tile), np.max(combined_tile)
-
             return selection, np.std(selection), np.min(selection), np.max(selection)
+
+        lat_diff = int(lat2) - int(lat)
+        lon_diff = int(lon2) - int(lon)
+
+        # just get all 4 tiles even if only need 1 extra. Shouldn't happen often so don't need to worry about speed
+        if lat_diff > 0 or lon_diff > 0:
+            if lat_diff > 2 or lon_diff > 2:
+                print("ERROR: Area exceeds 4 tiles--too large!")
+                return None
+            else:
+                case = 4
+                # get all for tiles, regardless of which ones we need..
+                BL_tile, _, _, _ = read_elevation_from_zip_file(lat, lon, path=path)
+                TL_tile, _, _, _ = read_elevation_from_zip_file(lat + 1, lon, path=path)
+                BR_tile, _, _, _ = read_elevation_from_zip_file(lat, lon + 1, path=path)
+                TR_tile, _, _, _ = read_elevation_from_zip_file(lat + 1, lon + 1, path=path)
+
+                BL_tile = BL_tile[1:, :-1]  # trim 1 overlap on top and right row/column
+                TL_tile = TL_tile[:, :-1]  # trim overlap on only right column
+                BR_tile = BR_tile[1:, :]  # trim overlap on only top row
+                # TR_tile no trim needed
+
+                top_combined = np.concatenate((TL_tile, TR_tile), axis=1)
+                bottom_combined = np.concatenate((BL_tile, BR_tile), axis=1)
+
+                combined_tile = np.concatenate((top_combined, bottom_combined), axis=0)
+
+                # start_row = int(abs(lat2-int(lat)) * (SAMPLES-1))
+                # end_row =  SAMPLES * 2 + 1 - int(abs((lat-int(lat)) * (SAMPLES-1)))
+                # start_col = SAMPLES * 2 - int(abs((lon-int(lon)) * (SAMPLES-1)))
+                # end_col =  int(abs((lon2-int(lon)) * (SAMPLES-1)))
+
+                # # works for NE hemisphere
+                # start_row = SAMPLES * 2 + 1 - int((lat2-int(lat)) * (SAMPLES-1))
+                # end_row =  SAMPLES * 2 + 1 - int(((lat-int(lat)) * (SAMPLES-1)))
+                # start_col = int((lon - int(lon))*SAMPLES-1)
+                # end_col =  int(((lon2-int(lon)) * (SAMPLES-1)))
+
+                # # option 3
+                # start_row = SAMPLES * 2 + 1 - int(abs(lat2-int(lat)) * (SAMPLES-1))
+                # end_row =  SAMPLES * 2 + 1 - int(((lat-int(lat)) * (SAMPLES-1)))
+                # start_col = int((lon - int(lon))*SAMPLES-1)
+                # end_col =  int(((lon2-int(lon)) * (SAMPLES-1)))
+
+                # option 4
+                start_row = SAMPLES * num_tiles + 1 - int((lat2 - np.floor(lat)) * (SAMPLES - 1))
+                end_row = SAMPLES * num_tiles + 1 - int((lat - np.floor(lat)) * (SAMPLES - 1))
+                start_col = int((lon - np.floor(lon)) * (SAMPLES - 1))
+                end_col = int((lon2 - np.floor(lon)) * (SAMPLES - 1))
+
+                # start_row = 3000
+                #end_row =  4000
+                # start_col = 3000
+                #end_col =  4500
+                selection = combined_tile[start_row:end_row, start_col:end_col]
+
+                #print(lat, lon, lat2, lon2)
+                #print(BL_tile, TL_tile, BR_tile, TR_tile)
+                #print(f"combined tile {combined_tile} with lengths {len(combined_tile)} {len(combined_tile[0])}")
+                #print(start_row, end_row, start_col, end_col)
+                #print(f"selection {selection}")
+                # selection should already be the correct size
+                # return combined_tile, np.std(combined_tile), np.min(combined_tile), np.max(combined_tile)
+
+                return selection, np.std(selection), np.min(selection), np.max(selection)
+
+    except Exception as e:
+        print(f"Encountered an error {e} in read_exact_elevation_from_zip_file with"
+              f" start/end: {start_row}/{end_row},{start_col}/{end_col} and selection {selection}")
+        return None
 
     # # another more precise, but more complex way of doing it
     # if lat_diff > 0:
@@ -351,12 +385,15 @@ def save_elevationstdev_vs_error(elev_stdev_file='city_elev_stdev.csv',
 
 
 # to generate city_elev_stdev.csv list
-def write_city_elev_sdev():
+def write_city_elev_stdev():
     cities = read_city_list()
     results = generate_elev_stdev_list2(cities)
-    outfile_name = 'city_elev_stdev.csv'
+    #outfile_name = 'city_elev_stdev.csv'
+    outfile_name = 'city_elev_stdev_exact.csv'
     with open(outfile_name, 'w', newline='', encoding="ISO-8859-1") as file:
         writer = csv.writer(file)
+        header = ["geonameid","city","country", "lat", "lon", "stdev_elev", "min_elev", "max_elev"]
+        writer.writerow(header)
         writer.writerows(results)
 
 
@@ -419,9 +456,6 @@ def test_and_plot_selection(lat, lon, lat2, lon2):
 # SW test -43.19059492375988, -65.18856797121325,-42.18849806595958, -64.12039828411608 (works)
 # SE test -5.266682797390478, 120.06496307062174,-4.081741580315065, 121.6523628870969 (works)
 if __name__ == '__main__':
-    test_and_plot_one_tile(-12.51390150059538, 134.77031898051987)
-
-    # works when it only spans 1 tile, but breaks with multiple?
-    # is it int, floor or rounding problem?
-    test_and_plot_selection(-12.51390150059538, 134.77031898051987, -12.107735552459383, 135.86044588268203)
-    #write_city_elev_sdev()
+    #test_and_plot_one_tile(-12.51390150059538, 134.77031898051987)
+    #test_and_plot_selection(-12.51390150059538, 134.77031898051987, -12.107735552459383, 135.86044588268203)
+    write_city_elev_stdev()
