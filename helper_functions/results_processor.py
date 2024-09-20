@@ -93,7 +93,7 @@ else:
                             min_key = dataset_id
                     print(f"{dataset_id} : {min_error}")
     else: # process from direct variable
-        for span in output:
+        for span in output: # for timespan results
             # print(f"span {span}")
             # print(f"span.keys() = {span.keys()}")
             min_error = 9999.0
