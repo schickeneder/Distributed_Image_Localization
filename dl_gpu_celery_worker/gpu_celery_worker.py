@@ -142,7 +142,10 @@ def train_one_and_log(params):
     attempts = 0
 
     while attempts < 10 and res == False:
-        res = find_dataset(params['data_filename']) # download from redis cache if not present
+        try:
+            res = find_dataset(params['data_filename']) # download from redis cache if not present
+        except Exception as e:
+            print(f"*** Exception in find_dataset {e}")
         if not res:
             time.sleep(attempts*20)
             attempts += 1

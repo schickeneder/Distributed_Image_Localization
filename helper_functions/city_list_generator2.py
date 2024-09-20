@@ -71,7 +71,7 @@ def main():
     square_length = 8000
 
     for city in cities_data:
-        lat, lon = cities_data[city]['latitude'], cities_data[city]['longitude']
+        lat, lon = float(cities_data[city]['latitude']), float(cities_data[city]['longitude'])
         data_filename = "datasets/generated/" + cities_data[city]['geonameid'] + "_" + cities_data[city]["name"] \
                         + "__" + cities_data[city]["country"] + str(int(square_length / 1000)) + '.csv'
 
