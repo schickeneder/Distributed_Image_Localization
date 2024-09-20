@@ -156,13 +156,9 @@ def generate_datasets():
     if not os.path.exists('/datasets/generated'):
         os.makedirs('/datasets/generated')
 
-    count = 0
 
     if global_dataset_loaded:
         for city in cities_data:
-            if count > 10:
-                break
-            count += 1
             lat,lon = float(cities_data[city]['latitude']),float(cities_data[city]['longitude'])
             bl_coords, tr_coords = get_square_corners(lat,lon,square_length)
             local_dataset = filter_coordinates(global_dataset,
