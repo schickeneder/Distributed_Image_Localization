@@ -1,9 +1,12 @@
 import csv
+import pickle
 
 # citylist source files obtained from https://download.geonames.org/export/dump/
 
+# returns a list and dict of cities with geonameid as dict key
 def read_city_list(file_path):
-    cities = []
+    city_list = []
+    city_dict = {}
     with open(file_path, mode='r', encoding = "ISO-8859-1") as file:
         reader = csv.reader(file, delimiter='\t')  # Use tab delimiter
         next(reader)  # Skip header if present
@@ -12,15 +15,16 @@ def read_city_list(file_path):
                 city = {
                     'geonameid': row[0],
                     'name': row[1],
-                    'alternate_names': row[2],
+                    #'alternate_names': row[2],
                     'latitude': row[4],
                     'longitude': row[5],
                     'country': row[8],
                     'population': row[-5],
                     'timezone': row[-2],
                 }
-                cities.append(city)
-    return cities
+                city_list.append(city)
+                city_dict[row[0]] = city
+    return city_list, city_dict
 
 
 def filter_cities_by_country(cities, country_code):
@@ -55,10 +59,25 @@ def filtered_city_list(cities):
                     filtered_cities.append([city["name"], city["country"], city["latitude"], city["longitude"]])
     return filtered_cities
 
+
+
 def main():
     file_path = 'cities15000_raw.txt' # from geonames.org, contains info for all cities with pop > 15000
 
-    cities = read_city_list(file_path)
+    cities, cities_data = read_city_list(file_path)
+
+    # print(city_dict)
+
+    square_length = 8000
+
+    for city in cities_data:
+        lat, lon = cities_data[city]['latitude'], cities_data[city]['longitude']
+        data_filename = "datasets/generated/" + cities_data[city]['geonameid'] + "_" + cities_data[city]["name"] \
+                        + "__" + cities_data[city]["country"] + str(int(square_length / 1000)) + '.csv'
+
+        print(city,lat,lon,data_filename)
+
+    pickle.dump(city_dict, open('cities15000_dict_all.pickle', 'wb'))
 
     # Example: Filter cities by country code 'AU' for Australia
     au_cities = filter_cities_by_country(cities, 'AU')
