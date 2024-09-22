@@ -51,6 +51,8 @@ def find_dataset(file_path):
             os.makedirs('datasets/generated')
         redis_file_key = f'file:{file_path}'
         file_data = redis_client.get(redis_file_key)
+        if not file_data:
+            file_data = redis_client.get(file_path)
         if file_data:
             # Save the file locally
             with open(file_path, 'w') as f:
