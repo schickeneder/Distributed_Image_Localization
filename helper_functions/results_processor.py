@@ -1,6 +1,7 @@
 import ast
 import glob
 import csv
+import os
 
 # SD30_helium
 output = [{'timespan-[1501920252, 1504548540, 1]': []}, {'timespan-[1635896053, 1638524341, 2]': [[9, 'random', 0, 'CoMLoss()', '0.2testsize_test', '3148.3477'], [9, 'random', 0, 'MSELoss()', '0.2testsize_test', '2645.2021'], [9, 'random', 0, 'SlicedEarthMoversDistance()', '0.2testsize_test', '3391.5127'], [9, 'grid2', 0, 'CoMLoss()', '0.2testsizegrid2_test', '4498.968'], [9, 'grid2', 0, 'MSELoss()', '0.2testsizegrid2_test', '3404.7593'], [9, 'grid2', 0, 'SlicedEarthMoversDistance()', '0.2testsizegrid2_test', '5191.675'], [9, 'grid5', 0, 'CoMLoss()', '0.2testsizegrid5_test', '3845.1052'], [9, 'grid5', 0, 'MSELoss()', '0.2testsizegrid5_test', '3171.9802'], [9, 'grid5', 0, 'SlicedEarthMoversDistance()', '0.2testsizegrid5_test', '4572.058']]}, {'timespan-[1638524621, 1641152909, 3004]': [[9, 'random', 0, 'CoMLoss()', '0.2testsize_test', '3061.8303'], [9, 'random', 0, 'MSELoss()', '0.2testsize_test', '2315.369'], [9, 'random', 0, 'SlicedEarthMoversDistance()', '0.2testsize_test', '2890.3982'], [9, 'grid2', 0, 'CoMLoss()', '0.2testsizegrid2_test', '4685.2515'], [9, 'grid2', 0, 'MSELoss()', '0.2testsizegrid2_test', '3516.8513'], [9, 'grid2', 0, 'SlicedEarthMoversDistance()', '0.2testsizegrid2_test', '5450.52'], [9, 'grid5', 0, 'CoMLoss()', '0.2testsizegrid5_test', '3237.503'], [9, 'grid5', 0, 'MSELoss()', '0.2testsizegrid5_test', '3191.6804'], [9, 'grid5', 0, 'SlicedEarthMoversDistance()', '0.2testsizegrid5_test', '2947.3167']]}, {'timespan-[1641154548, 1643782836, 3929]': [[9, 'random', 0, 'CoMLoss()', '0.2testsize_test', '2982.41'], [9, 'random', 0, 'MSELoss()', '0.2testsize_test', '2871.9197'], [9, 'random', 0, 'SlicedEarthMoversDistance()', '0.2testsize_test', '2932.4424'], [9, 'grid2', 0, 'CoMLoss()', '0.2testsizegrid2_test', '3968.1948'], [9, 'grid2', 0, 'MSELoss()', '0.2testsizegrid2_test', '2863.5564'], [9, 'grid2', 0, 'SlicedEarthMoversDistance()', '0.2testsizegrid2_test', '4934.7915'], [9, 'grid5', 0, 'CoMLoss()', '0.2testsizegrid5_test', '3187.2993'], [9, 'grid5', 0, 'MSELoss()', '0.2testsizegrid5_test', '2191.6687'], [9, 'grid5', 0, 'SlicedEarthMoversDistance()', '0.2testsizegrid5_test', '2830.21']]}, {'timespan-[1643783404, 1646411692, 4324]': [[9, 'random', 0, 'CoMLoss()', '0.2testsize_test', '3198.0015'], [9, 'random', 0, 'MSELoss()', '0.2testsize_test', '3129.7915'], [9, 'random', 0, 'SlicedEarthMoversDistance()', '0.2testsize_test', '3574.4487'], [9, 'grid2', 0, 'CoMLoss()', '0.2testsizegrid2_test', '4634.913'], [9, 'grid2', 0, 'MSELoss()', '0.2testsizegrid2_test', '3012.5662'], [9, 'grid2', 0, 'SlicedEarthMoversDistance()', '0.2testsizegrid2_test', '5148.019'], [9, 'grid5', 0, 'CoMLoss()', '0.2testsizegrid5_test', '3123.6848'], [9, 'grid5', 0, 'MSELoss()', '0.2testsizegrid5_test', '2818.1997'], [9, 'grid5', 0, 'SlicedEarthMoversDistance()', '0.2testsizegrid5_test', '3759.8516']]}, {'timespan-[1646412680, 1649040968, 3458]': [[9, 'random', 0, 'CoMLoss()', '0.2testsize_test', '2900.6377'], [9, 'random', 0, 'MSELoss()', '0.2testsize_test', '2939.4922'], [9, 'random', 0, 'SlicedEarthMoversDistance()', '0.2testsize_test', '3018.8022'], [9, 'grid2', 0, 'CoMLoss()', '0.2testsizegrid2_test', '4217.2114'], [9, 'grid2', 0, 'MSELoss()', '0.2testsizegrid2_test', '3081.5376'], [9, 'grid2', 0, 'SlicedEarthMoversDistance()', '0.2testsizegrid2_test', '4663.212'], [9, 'grid5', 0, 'CoMLoss()', '0.2testsizegrid5_test', '3421.3594'], [9, 'grid5', 0, 'MSELoss()', '0.2testsizegrid5_test', '2959.1687'], [9, 'grid5', 0, 'SlicedEarthMoversDistance()', '0.2testsizegrid5_test', '3749.4995']]}, {'timespan-[1649042174, 1651670462, 2514]': [[9, 'random', 0, 'CoMLoss()', '0.2testsize_test', '2953.9595'], [9, 'random', 0, 'MSELoss()', '0.2testsize_test', '2633.343'], [9, 'random', 0, 'SlicedEarthMoversDistance()', '0.2testsize_test', '3189.4375'], [9, 'grid2', 0, 'CoMLoss()', '0.2testsizegrid2_test', '4409.0503'], [9, 'grid2', 0, 'MSELoss()', '0.2testsizegrid2_test', '2853.9453'], [9, 'grid2', 0, 'SlicedEarthMoversDistance()', '0.2testsizegrid2_test', '5065.988'], [9, 'grid5', 0, 'CoMLoss()', '0.2testsizegrid5_test', '3472.2244'], [9, 'grid5', 0, 'MSELoss()', '0.2testsizegrid5_test', '2953.314'], [9, 'grid5', 0, 'SlicedEarthMoversDistance()', '0.2testsizegrid5_test', '3562.8762']]}, {'timespan-[1651671228, 1654299516, 1482]': [[9, 'random', 0, 'CoMLoss()', '0.2testsize_test', '3109.8518'], [9, 'random', 0, 'MSELoss()', '0.2testsize_test', '2512.5437'], [9, 'random', 0, 'SlicedEarthMoversDistance()', '0.2testsize_test', '3206.727'], [9, 'grid2', 0, 'CoMLoss()', '0.2testsizegrid2_test', '4692.47'], [9, 'grid2', 0, 'MSELoss()', '0.2testsizegrid2_test', '3553.031'], [9, 'grid2', 0, 'SlicedEarthMoversDistance()', '0.2testsizegrid2_test', '5358.694'], [9, 'grid5', 0, 'CoMLoss()', '0.2testsizegrid5_test', '3371.0317'], [9, 'grid5', 0, 'MSELoss()', '0.2testsizegrid5_test', '2554.4268'], [9, 'grid5', 0, 'SlicedEarthMoversDistance()', '0.2testsizegrid5_test', '4498.555']]}, {'timespan-[1654301298, 1656929586, 1096]': [[9, 'random', 0, 'CoMLoss()', '0.2testsize_test', '3201.6216'], [9, 'random', 0, 'MSELoss()', '0.2testsize_test', '2586.846'], [9, 'random', 0, 'SlicedEarthMoversDistance()', '0.2testsize_test', '2659.0054'], [9, 'grid2', 0, 'CoMLoss()', '0.2testsizegrid2_test', '4342.9473'], [9, 'grid2', 0, 'MSELoss()', '0.2testsizegrid2_test', '2593.4363'], [9, 'grid2', 0, 'SlicedEarthMoversDistance()', '0.2testsizegrid2_test', '3553.7517'], [9, 'grid5', 0, 'CoMLoss()', '0.2testsizegrid5_test', '3095.4556'], [9, 'grid5', 0, 'MSELoss()', '0.2testsizegrid5_test', '2871.2053'], [9, 'grid5', 0, 'SlicedEarthMoversDistance()', '0.2testsizegrid5_test', '3140.569']]}, {'timespan-[1656946921, 1659575209, 1075]': [[9, 'random', 0, 'CoMLoss()', '0.2testsize_test', '3096.2495'], [9, 'random', 0, 'MSELoss()', '0.2testsize_test', '3303.1782'], [9, 'random', 0, 'SlicedEarthMoversDistance()', '0.2testsize_test', '3720.4595'], [9, 'grid2', 0, 'CoMLoss()', '0.2testsizegrid2_test', '4783.321'], [9, 'grid2', 0, 'MSELoss()', '0.2testsizegrid2_test', '2958.2476'], [9, 'grid2', 0, 'SlicedEarthMoversDistance()', '0.2testsizegrid2_test', '5589.598'], [9, 'grid5', 0, 'CoMLoss()', '0.2testsizegrid5_test', '3655.8472'], [9, 'grid5', 0, 'MSELoss()', '0.2testsizegrid5_test', '2832.7935'], [9, 'grid5', 0, 'SlicedEarthMoversDistance()', '0.2testsizegrid5_test', '4512.353']]}, {'timespan-[1659577116, 1662205404, 919]': [[9, 'random', 0, 'CoMLoss()', '0.2testsize_test', '3140.5862'], [9, 'random', 0, 'MSELoss()', '0.2testsize_test', '2955.2012'], [9, 'random', 0, 'SlicedEarthMoversDistance()', '0.2testsize_test', '4181.419'], [9, 'grid2', 0, 'CoMLoss()', '0.2testsizegrid2_test', '4306.379'], [9, 'grid2', 0, 'MSELoss()', '0.2testsizegrid2_test', '3880.524'], [9, 'grid2', 0, 'SlicedEarthMoversDistance()', '0.2testsizegrid2_test', '5718.4287'], [9, 'grid5', 0, 'CoMLoss()', '0.2testsizegrid5_test', '3695.457'], [9, 'grid5', 0, 'MSELoss()', '0.2testsizegrid5_test', '3209.2393'], [9, 'grid5', 0, 'SlicedEarthMoversDistance()', '0.2testsizegrid5_test', '3565.361']]}, {'timespan-[1662212994, 1664841282, 1220]': [[9, 'random', 0, 'CoMLoss()', '0.2testsize_test', '3295.696'], [9, 'random', 0, 'MSELoss()', '0.2testsize_test', '2795.5117'], [9, 'random', 0, 'SlicedEarthMoversDistance()', '0.2testsize_test', '3407.1086'], [9, 'grid2', 0, 'CoMLoss()', '0.2testsizegrid2_test', '4516.8955'], [9, 'grid2', 0, 'MSELoss()', '0.2testsizegrid2_test', '3018.7852'], [9, 'grid2', 0, 'SlicedEarthMoversDistance()', '0.2testsizegrid2_test', '6075.65'], [9, 'grid5', 0, 'CoMLoss()', '0.2testsizegrid5_test', '3426.1914'], [9, 'grid5', 0, 'MSELoss()', '0.2testsizegrid5_test', '2659.6365'], [9, 'grid5', 0, 'SlicedEarthMoversDistance()', '0.2testsizegrid5_test', '3976.929']]}, {'timespan-[1664841650, 1667469938, 1280]': [[9, 'random', 0, 'CoMLoss()', '0.2testsize_test', '3114.5906'], [9, 'random', 0, 'MSELoss()', '0.2testsize_test', '2979.2402'], [9, 'random', 0, 'SlicedEarthMoversDistance()', '0.2testsize_test', '3443.19'], [9, 'grid2', 0, 'CoMLoss()', '0.2testsizegrid2_test', '4634.2695'], [9, 'grid2', 0, 'MSELoss()', '0.2testsizegrid2_test', '3617.5742'], [9, 'grid2', 0, 'SlicedEarthMoversDistance()', '0.2testsizegrid2_test', '5123.612'], [9, 'grid5', 0, 'CoMLoss()', '0.2testsizegrid5_test', '3632.2688'], [9, 'grid5', 0, 'MSELoss()', '0.2testsizegrid5_test', '2471.0847'], [9, 'grid5', 0, 'SlicedEarthMoversDistance()', '0.2testsizegrid5_test', '3717.9956']]}, {'timespan-[1667477540, 1670105828, 1034]': [[9, 'random', 0, 'CoMLoss()', '0.2testsize_test', '3166.6367'], [9, 'random', 0, 'MSELoss()', '0.2testsize_test', '2647.123'], [9, 'random', 0, 'SlicedEarthMoversDistance()', '0.2testsize_test', '3204.629'], [9, 'grid2', 0, 'CoMLoss()', '0.2testsizegrid2_test', '4291.315'], [9, 'grid2', 0, 'MSELoss()', '0.2testsizegrid2_test', '3171.0193'], [9, 'grid2', 0, 'SlicedEarthMoversDistance()', '0.2testsizegrid2_test', '5166.5737'], [9, 'grid5', 0, 'CoMLoss()', '0.2testsizegrid5_test', '3313.906'], [9, 'grid5', 0, 'MSELoss()', '0.2testsizegrid5_test', '2532.8425'], [9, 'grid5', 0, 'SlicedEarthMoversDistance()', '0.2testsizegrid5_test', '3297.0261']]}, {'timespan-[1670112648, 1672740936, 1284]': [[9, 'random', 0, 'CoMLoss()', '0.2testsize_test', '3210.0'], [9, 'random', 0, 'MSELoss()', '0.2testsize_test', '3340.5981'], [9, 'random', 0, 'SlicedEarthMoversDistance()', '0.2testsize_test', '2997.1921'], [9, 'grid2', 0, 'CoMLoss()', '0.2testsizegrid2_test', '4023.0806'], [9, 'grid2', 0, 'MSELoss()', '0.2testsizegrid2_test', '3478.9565'], [9, 'grid2', 0, 'SlicedEarthMoversDistance()', '0.2testsizegrid2_test', '4652.4077'], [9, 'grid5', 0, 'CoMLoss()', '0.2testsizegrid5_test', '3397.358'], [9, 'grid5', 0, 'MSELoss()', '0.2testsizegrid5_test', '2699.5806'], [9, 'grid5', 0, 'SlicedEarthMoversDistance()', '0.2testsizegrid5_test', '3173.7993']]}, {'timespan-[1672747521, 1675375809, 1459]': [[9, 'random', 0, 'CoMLoss()', '0.2testsize_test', '2809.819'], [9, 'random', 0, 'MSELoss()', '0.2testsize_test', '2073.4316'], [9, 'random', 0, 'SlicedEarthMoversDistance()', '0.2testsize_test', '2712.1982'], [9, 'grid2', 0, 'CoMLoss()', '0.2testsizegrid2_test', '4058.6165'], [9, 'grid2', 0, 'MSELoss()', '0.2testsizegrid2_test', '3393.6099'], [9, 'grid2', 0, 'SlicedEarthMoversDistance()', '0.2testsizegrid2_test', '4470.3354'], [9, 'grid5', 0, 'CoMLoss()', '0.2testsizegrid5_test', '3689.6902'], [9, 'grid5', 0, 'MSELoss()', '0.2testsizegrid5_test', '2830.101'], [9, 'grid5', 0, 'SlicedEarthMoversDistance()', '0.2testsizegrid5_test', '3628.509']]}, {'timespan-[1675375955, 1678004243, 1239]': [[9, 'random', 0, 'CoMLoss()', '0.2testsize_test', '3036.6934'], [9, 'random', 0, 'MSELoss()', '0.2testsize_test', '2673.0625'], [9, 'random', 0, 'SlicedEarthMoversDistance()', '0.2testsize_test', '2667.8801'], [9, 'grid2', 0, 'CoMLoss()', '0.2testsizegrid2_test', '4672.7476'], [9, 'grid2', 0, 'MSELoss()', '0.2testsizegrid2_test', '3052.6108'], [9, 'grid2', 0, 'SlicedEarthMoversDistance()', '0.2testsizegrid2_test', '5414.1567'], [9, 'grid5', 0, 'CoMLoss()', '0.2testsizegrid5_test', '3723.6094'], [9, 'grid5', 0, 'MSELoss()', '0.2testsizegrid5_test', '3293.3928'], [9, 'grid5', 0, 'SlicedEarthMoversDistance()', '0.2testsizegrid5_test', '3433.947']]}, {'timespan-[1678004317, 1680632605, 4608]': [[9, 'random', 0, 'CoMLoss()', '0.2testsize_test', '2898.807'], [9, 'random', 0, 'MSELoss()', '0.2testsize_test', '2531.3728'], [9, 'random', 0, 'SlicedEarthMoversDistance()', '0.2testsize_test', '3071.726'], [9, 'grid2', 0, 'CoMLoss()', '0.2testsizegrid2_test', '3782.2676'], [9, 'grid2', 0, 'MSELoss()', '0.2testsizegrid2_test', '3297.6624'], [9, 'grid2', 0, 'SlicedEarthMoversDistance()', '0.2testsizegrid2_test', '4647.9526'], [9, 'grid5', 0, 'CoMLoss()', '0.2testsizegrid5_test', '3816.8904'], [9, 'grid5', 0, 'MSELoss()', '0.2testsizegrid5_test', '3187.3027'], [9, 'grid5', 0, 'SlicedEarthMoversDistance()', '0.2testsizegrid5_test', '3235.964']]}, {'timespan-[1680632608, 1683260896, 4559]': [[9, 'random', 0, 'CoMLoss()', '0.2testsize_test', '3464.3494'], [9, 'random', 0, 'MSELoss()', '0.2testsize_test', '3162.2454'], [9, 'random', 0, 'SlicedEarthMoversDistance()', '0.2testsize_test', '3475.143'], [9, 'grid2', 0, 'CoMLoss()', '0.2testsizegrid2_test', '4191.8374'], [9, 'grid2', 0, 'MSELoss()', '0.2testsizegrid2_test', '6730.183'], [9, 'grid2', 0, 'SlicedEarthMoversDistance()', '0.2testsizegrid2_test', '5026.0093'], [9, 'grid5', 0, 'CoMLoss()', '0.2testsizegrid5_test', '3732.6533'], [9, 'grid5', 0, 'MSELoss()', '0.2testsizegrid5_test', '3106.4985'], [9, 'grid5', 0, 'SlicedEarthMoversDistance()', '0.2testsizegrid5_test', '3819.3877']]}]
@@ -14,7 +15,8 @@ process_from_file=False
 
 process_all_results_logs=True
 results_pattern = r'results/*results.txt'
-process_all_results_filename = '20240914_normal_1500cities_combined_results.csv'
+process_all_results_filename = '20240921_normal_1500cities_combined_results.csv'
+generated_datasets_dir = r"C:\Users\ps\OneDrive\Documents\DL_Image_Localization_Results\20240921_15000cities_normal\generated"
 
 def count_lines_in_file(file_path):
     try:
@@ -30,12 +32,19 @@ def count_lines_in_file(file_path):
 
 print("Printing best case train_error for each segment")
 
-if process_all_results_logs:
+def process_all_results_logs():
     results_dict = {}
     for file_name in glob.glob(results_pattern):
         with open(file_name, 'r',encoding="ISO-8859-1") as file:
+            # Some have more than one line per file due to filename timestamp convention
             # Read the file content and store it in the dictionary
-            results_dict[file_name] = file.read()
+            for line in file:
+                count = 2
+                if file_name in results_dict:
+                    new_file_name = file_name + str(count)
+                    count += 1
+                else:
+                    results_dict[file_name] = line
     with open(process_all_results_filename, 'w', newline='',encoding="ISO-8859-1") as outfile:
         writer = csv.writer(outfile)
 
@@ -71,7 +80,7 @@ if process_all_results_logs:
                 print(f"Error processing {file_name}: {e}")
 
 
-else:
+def process_results_old_format():
     if process_from_file:
         with open(input_file,"r") as f:
             for line in f:
@@ -105,3 +114,31 @@ else:
                     min_error = float(result[-1])
                     min_key = span_key
             print(f"{span_key} : {min_error}")
+
+def get_generated_datasets_city_list(datasets_dir=generated_datasets_dir):
+    generated_city_datasets = []
+    for file in os.listdir(datasets_dir):
+        if file.endswith(".csv"):
+            generated_city_datasets.append(file)
+    return generated_city_datasets
+
+def find_missing_results(results_file_path=process_all_results_filename):
+    generated_city_list = get_generated_datasets_city_list()
+    with open(results_file_path,"r",encoding="ISO-8859-1") as file:
+        cities_with_results = []
+        for line in file:
+            city_id = line.split(",")[1]
+            cities_with_results.append(city_id)
+
+    print(f"generated_datasets {len(generated_city_list)}, cities with results {len(cities_with_results)},"
+          f"cities_without_results {len([x for x in generated_city_list if x not in cities_with_results])}")
+
+    return
+
+
+
+if __name__ == '__main__':
+    find_missing_results()
+    #print(get_generated_datasets_city_list())
+    # process_results_old_format()
+    # process_all_results_logs()
