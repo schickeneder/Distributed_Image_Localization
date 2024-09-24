@@ -64,6 +64,7 @@ def filtered_city_list(cities):
 def main():
     file_path = 'cities15000_raw.txt' # from geonames.org, contains info for all cities with pop > 15000
 
+    # list, dict
     cities, cities_data = read_city_list(file_path)
 
     # print(city_dict)
@@ -77,7 +78,7 @@ def main():
 
         print(city,lat,lon,data_filename)
 
-    pickle.dump(city_dict, open('cities15000_dict_all.pickle', 'wb'))
+    pickle.dump(cities_data, open('cities15000_dict_all.pickle', 'wb'))
 
     # Example: Filter cities by country code 'AU' for Australia
     au_cities = filter_cities_by_country(cities, 'AU')

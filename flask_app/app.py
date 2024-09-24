@@ -134,8 +134,8 @@ def filter_deny_lat(lat1,lat2):
 def hello_world():
     return 'Hello, World!'
 
-@app.route('/generate_datasets')
-def generate_datasets():
+@app.route('/generate_datasets/<cities_data>')
+def generate_datasets(cities_data):
     global global_dataset
     global global_dataset_loaded
 
@@ -145,7 +145,9 @@ def generate_datasets():
 
 
     # cities_data dict like '4366476': {'geonameid': '4366476', 'name': 'Randallstown', 'latitude': '39.36733', 'longitude': '-76.79525', 'country': 'US', 'population': '32430', 'timezone': 'America/New_York'}
-    cities_data = pickle.load(open('datasets/cities15000_dict_all.pickle', 'rb'))
+    # cities_data = pickle.load(open('datasets/cities15000_dict_all.pickle', 'rb'))
+    cities_data = pickle.load(open(f'datasets/{cities_data}', 'rb'))
+
 
     params = {"max_num_epochs": 50, "num_training_repeats": 1, "batch_size": 64, "rx_blacklist": [0],
               'func_list': ["MSE","COM","EMD"], "data_filename": "",
