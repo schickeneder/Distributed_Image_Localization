@@ -17,7 +17,9 @@ process_from_file=False
 process_all_results_logs=True
 results_pattern = r'results/*results.txt'
 process_all_results_filename = '20240921_normal_1500cities_combined_results_remainder2.csv'
-generated_datasets_dir = r"C:\Users\ps\OneDrive\Documents\DL_Image_Localization_Results\20240921_15000cities_normal_remainder1\generated"
+# this dir should contain ALL cities
+generated_datasets_dir = r"C:\Users\ps\OneDrive\Documents\DL_Image_Localization_Results\20240921_15000cities_normal\generated"
+# generated_datasets_dir = r"C:\Users\ps\OneDrive\Documents\DL_Image_Localization_Results\20240921_15000cities_normal_remainder1\generated"
 
 def count_lines_in_file(file_path):
     try:
@@ -30,8 +32,6 @@ def count_lines_in_file(file_path):
     except Exception as e:
         print(f"An error occurred: {e}")
         return None
-
-print("Printing best case train_error for each segment")
 
 def process_all_results_logs():
     results_dict = {}
@@ -178,21 +178,77 @@ def combine_csv_files_to_dict(list_of_files):
     for in_file in list_of_files:
         with open(in_file, "r", encoding="ISO-8859-1") as file:
             for line in file:
+                print(line)
+                results_file = line.split(",")[0].split('\\')[1]
+                city_id = line.split(",")[1]
                 geonameid = line.split(",")[1].split("_")[0].strip('"')
-                error = line.split(",")[-1]
+                error = float(line.split(",")[-1])
                 # print(geonameid,error)
                 if geonameid not in results_dict:
-                    results_dict[geonameid] = error
+                    results_dict[geonameid] = {}
+                    results_dict[geonameid]['error'] = error
+                    results_dict[geonameid]['results_file'] = results_file
+                    results_dict[geonameid]['city_id'] = city_id
                 else:
                     print(f"{geonameid} already in dict. Skipping.")
                     dupe_count += 1
     print(f"dupe count {dupe_count}, dict size {len(results_dict)}")
+    # print(results_dict)
+    return results_dict
+
+def get_data_counts_to_dict(datasets_dir=generated_datasets_dir):
+# saves and returns structure like {'<geonameid>':<number of samples>}
+    pickle_file_name = "all_geonameid_sample_counts.pickle"
+    if os.path.exists(pickle_file_name):
+        results_dict = pickle.load(open(pickle_file_name, "rb"))
+        return results_dict
+
+    results_dict = {}
+    for file_name in os.listdir(datasets_dir):
+        if file_name.endswith(".csv"):
+            try:
+                file_path = os.path.join(datasets_dir, file_name)
+                with open(file_path, "r", encoding="ISO-8859-1") as file:
+                    line_count = len(file.readlines())
+            except Exception as e:
+                print(f"{file_name} failed to load because {e}")
+                continue
+            geonameid = file_name.split("_")[0].strip('"')
+            if geonameid not in results_dict:
+                results_dict[geonameid] = line_count
+
+    pickle.dump(results_dict, open(pickle_file_name, "wb"))
+    return results_dict
+
+
+def make_merged_output_csv(cities_error_dict):
+    cities_counts_dict = get_data_counts_to_dict()
+
+    for geonameid in cities_error_dict:
+        # print(f"{geonameid}: {cities_counts_dict[geonameid]}")
+        cities_error_dict[geonameid]["sample_counts"] = cities_counts_dict[geonameid]
+        # print(cities_error_dict[geonameid])
+
+
+    # print(cities_counts_dict)
+    # print(cities_error_dict)
+
+    with open('cities_error_and_counts.csv', 'w', newline='',encoding="ISO-8859-1") as csvfile:
+        fieldnames = ['results_file','city_id','error','sample_counts']
+        writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+        writer.writeheader()
+        for geonameid in cities_error_dict:
+            writer.writerow(cities_error_dict[geonameid])
+
+
 
 if __name__ == '__main__':
     list_of_files = ['20240921_normal_1500cities_combined_results.csv',
                      '20240921_normal_1500cities_combined_results_remainder1.csv',
                      '20240921_normal_1500cities_combined_results_remainder2.csv']
-    combine_csv_files_to_dict(list_of_files)
+    # combine_csv_files_to_dict(list_of_files)
+    # get_data_counts_to_dict()
+    make_merged_output_csv(combine_csv_files_to_dict(list_of_files))
     # process_all_results_logs()
     # find_missing_results()
     #print(get_generated_datasets_city_list())

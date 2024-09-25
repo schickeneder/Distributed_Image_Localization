@@ -8,10 +8,10 @@ import numpy as np
 from city_elevation_processor import test_and_plot_selection, get_square_corners, read_exact_elevation_from_zip_file
 
 
-def plot_and_save_samples_vs_error(merged_file = '20240912_deny_list_merged_output.csv' ):
+def plot_and_save_samples_vs_error(merged_file = 'cities_error_and_counts.csv'):#'20240912_deny_list_merged_output.csv' ):
     # Read data from CSV file
     #data = pd.read_csv('deny_list_merged_output.csv')
-    data = pd.read_csv(merged_file)
+    data = pd.read_csv(merged_file,encoding="ISO-8859-1")
 
     # Extracting the first column as y values and the second column as x values
     y = data.iloc[:, 3] # samples_count
@@ -20,7 +20,7 @@ def plot_and_save_samples_vs_error(merged_file = '20240912_deny_list_merged_outp
     plt.scatter(x, y, c='blue', alpha=0.2, edgecolors='black')
 
     # Add titles and labels
-    plt.title(f'Mean Error vs Sample Quantity in 5000+ Cities')
+    plt.title(f'Mean Error vs Sample Quantity in {len(x)} Cities')
     plt.ylabel('Number of Samples')
     plt.xlabel('Mean Error (m)')
 
@@ -210,8 +210,8 @@ def plot_node_locations_on_elevation(city_id = "Dallas__US8",
 
 
 if __name__ == '__main__':
-    # plot_and_save_samples_vs_error()
+    plot_and_save_samples_vs_error()
     #save_elevationstdev_vs_error()
     #plot_elevationstdev_vs_error()
-    plot_node_locations_on_elevation() # TODO this is maching up the wrong Dallas's.. need to fix this and make unique
+    # plot_node_locations_on_elevation() # TODO this is maching up the wrong Dallas's.. need to fix this and make unique
     # TODO will adjust this with the new cities format that has geonameid in the filename
