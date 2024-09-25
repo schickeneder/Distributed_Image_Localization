@@ -40,12 +40,12 @@ def plot_and_save_samples_vs_error(merged_file = 'cities_error_and_counts.csv'):
 # Fairland,US,39.07622,-76.95775,44.56766372846624 vs 2024_09_11-23_02_46-results.txt,Adeje__ES8.csv,1434.1417,4511
 # can take city_elev_stdev.csv or city_elev_stdev_exact.csv with more precise selection area
 def save_elevationstdev_vs_error(elev_stdev_file = 'city_elev_stdev_exact.csv',
-                                          error_file = '20240912_deny_list_merged_output.csv' ):
+                                 error_file = 'cities_error_and_counts.csv',
+                                 outfile = '20240925_normal_error_vs_elev_stdev_exact.csv'):
+    # reads the elevation file and outputs a combined outfile
+
     elev_stdev_data = pd.read_csv(elev_stdev_file, encoding="ISO-8859-1")
     error_data = pd.read_csv(error_file, encoding="ISO-8859-1")
-
-    outfile = '20240912_error_vs_elev_stdev_exact.csv'
-
 
     with open(outfile, 'w',newline='') as csvfile:
         print(f"opened {outfile} for writing")
@@ -53,32 +53,24 @@ def save_elevationstdev_vs_error(elev_stdev_file = 'city_elev_stdev_exact.csv',
         header = ["city_id","error","stdev"]
         writer.writerow(header)
         for index,row in error_data.iterrows():
-            # print(f"index {index} row{row}")
+            # print(f"index {index} row{row} city_id:{row['city_id']}")
             try:
-                city_id = re.split(r'\d+', row['city_id'])[0]
+                city_id = int(row['city_id'].split('_')[0])
                 # print(city_id)
             except Exception as e:
                 print(f"Failed to retrieve city_id for {row['city_id']} with error {e}")
                 continue
-            #print(city_id)
+            # print(city_id)
             for index2, row2 in elev_stdev_data.iterrows():
                 try:
-                    # print(f"index2 {index2} row2{row2}")
-                    # print(row2['city'])
-                    country = row2['country']
-                    if not isinstance(country,str):
-                        country = "NA"
-                    try:
-                        city_id2 = row2['city'].replace(' ','_') + '__' + country
-                        # print(city_id2)
-                    except Exception as e:
-                        print(f"Failed to retrieve city_id2 for {row2['city']} and {country} with error {e}")
-                        continue # ignore the city if the country code is absent
+                    city_id2 = int(row2['geonameid'])
+                    # print(city_id,city_id2)
                     if city_id == city_id2:
                         # print(city_id, city_id2)
                         # print(f"{city_id},{row['error']},{row2['stdev_elev']}")
                         try:
                             row_towrite = [city_id,row['error'],row2['stdev_elev']]
+                            # print(row_towrite)
                             writer.writerow(row_towrite)
                         except Exception as e:
                             print(f"encountered an error {e} writing row {row_towrite}")
@@ -210,8 +202,8 @@ def plot_node_locations_on_elevation(city_id = "Dallas__US8",
 
 
 if __name__ == '__main__':
-    plot_and_save_samples_vs_error()
-    #save_elevationstdev_vs_error()
+    save_elevationstdev_vs_error()
+    plot_and_save_samples_vs_error('20240925_normal_error_vs_elev_stdev_exact.csv')
     #plot_elevationstdev_vs_error()
     # plot_node_locations_on_elevation() # TODO this is maching up the wrong Dallas's.. need to fix this and make unique
     # TODO will adjust this with the new cities format that has geonameid in the filename
