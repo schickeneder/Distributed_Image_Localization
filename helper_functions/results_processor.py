@@ -16,8 +16,8 @@ process_from_file=False
 
 process_all_results_logs=True
 results_pattern = r'results/*results.txt'
-process_all_results_filename = '20240921_normal_1500cities_combined_results.csv'
-generated_datasets_dir = r"C:\Users\ps\OneDrive\Documents\DL_Image_Localization_Results\20240921_15000cities_normal\generated"
+process_all_results_filename = '20240921_normal_1500cities_combined_results_remainder2.csv'
+generated_datasets_dir = r"C:\Users\ps\OneDrive\Documents\DL_Image_Localization_Results\20240921_15000cities_normal_remainder1\generated"
 
 def count_lines_in_file(file_path):
     try:
@@ -134,6 +134,8 @@ def find_missing_results(results_file_path=process_all_results_filename):
 
 
     cities_data = pickle.load(open('cities15000_dict_all.pickle', 'rb'))
+    # cities_data = pickle.load(open('missing_city_dict_remainder1.pickle', 'rb'))
+
 
     missing_city_dict = {}
 
@@ -155,7 +157,7 @@ def find_missing_results(results_file_path=process_all_results_filename):
             geonameid = city_id.split("_")[0].strip('"')
             missing_city_dict[geonameid] = cities_data[geonameid]
 
-    pickle.dump(missing_city_dict,open('missing_city_dict2.pickle','wb'))
+    # pickle.dump(missing_city_dict,open('missing_city_dict_remainder2.pickle','wb'))
 
     missing_data = [x for x in generated_city_list if x not in cities_with_results]
     missing_data_bad = [x for x in generated_city_list if x not in cities_with_bad_results]
@@ -170,10 +172,28 @@ def find_missing_results(results_file_path=process_all_results_filename):
 
     return
 
-
+def combine_csv_files_to_dict(list_of_files):
+    results_dict = {} # {<geonameid> : <result>}
+    dupe_count = 0
+    for in_file in list_of_files:
+        with open(in_file, "r", encoding="ISO-8859-1") as file:
+            for line in file:
+                geonameid = line.split(",")[1].split("_")[0].strip('"')
+                error = line.split(",")[-1]
+                # print(geonameid,error)
+                if geonameid not in results_dict:
+                    results_dict[geonameid] = error
+                else:
+                    print(f"{geonameid} already in dict. Skipping.")
+                    dupe_count += 1
+    print(f"dupe count {dupe_count}, dict size {len(results_dict)}")
 
 if __name__ == '__main__':
+    list_of_files = ['20240921_normal_1500cities_combined_results.csv',
+                     '20240921_normal_1500cities_combined_results_remainder1.csv',
+                     '20240921_normal_1500cities_combined_results_remainder2.csv']
+    combine_csv_files_to_dict(list_of_files)
     # process_all_results_logs()
-    find_missing_results()
+    # find_missing_results()
     #print(get_generated_datasets_city_list())
     # process_results_old_format()

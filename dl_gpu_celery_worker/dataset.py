@@ -1273,7 +1273,15 @@ class RSSLocDataset():
                     rx_tups[:,1:3] = coordinates.convert_gps_to_utm(rx_tups[:,1:3], origin_to_subtract=None)
                     #print(f"UTM tx_locs {tx_locs} and rx_tups {rx_tups}")
 
-                    tx_gains = [1] * len(tx_locs)
+                    try:
+                        tx_rss = float(columns[5])
+                    except:
+                        tx_rss = None
+
+                    if tx_rss:
+                        tx_gains = [tx_rss] * len(tx_locs)
+                    else:
+                        tx_gains = [1] * len(tx_locs)
                     #print(f"tx_gains {tx_gains}")
 
                     data_list.append( [tx_locs, rx_tups, tx_gains] )
