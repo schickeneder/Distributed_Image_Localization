@@ -289,12 +289,138 @@ def compare_errors(file1='20240921_normal_1500cities_combined_results_remainder1
     # print(dict2)
     return
 
+def test():
+    cities_data = pickle.load(open('cities15000_dict_all.pickle', 'rb'))
+    european_country_codes = [
+        "AL", "AD", "AM", "AT", "BY", "BE", "BA", "BG", "HR", "CY", "CZ", "DK", "EE", "FI", "FR",
+        "GE", "DE", "GR", "HU", "IS", "IE", "IT", "XK", "LV", "LI", "LT", "LU", "MT", "MD", "MC",
+        "ME", "NL", "MK", "NO", "PL", "PT", "RO", "SM", "RS", "SK", "SI", "ES", "SE", "CH", "UA",
+        "GB", "VA"
+    ]
+    for city in cities_data:
+        # if cities_data[city]['country'] == 'US':
+        #     print(cities_data[city])
+        if cities_data[city]['country'] in european_country_codes:
+            print(cities_data[city])
+
+def get_top_population_cities(country_list = ['US'], n = 50, make_pickle = False, pickle_name = ''):
+    # returns list of geonameids corresponding to cities from country list with the top <n> population
+    cities_data = pickle.load(open('cities15000_dict_all.pickle', 'rb'))
+    # print(cities_data.items())
+
+
+    # Create a list of tuples (population, geonameid)
+    population_geonameid_pairs = [(int(cities_data[geonameid]['population']),
+                                   geonameid,cities_data[geonameid]['name'].strip(','))
+                                  for geonameid in cities_data if cities_data[geonameid]['country'] in country_list]
+
+
+    # Sort the list in descending order by population
+    population_geonameid_pairs.sort(reverse=True)
+
+    print(f"sorted population: {population_geonameid_pairs[:n]}")
+
+    # Extract the top n geonameids
+    top_geonameids = [geonameid for _, geonameid, _ in population_geonameid_pairs[:n]]
+
+    if make_pickle:
+        cities_dict = pickle.load(open('cities15000_dict_all.pickle', 'rb'))
+
+        new_dict = {key: value for key, value in cities_dict.items() if key in top_geonameids}
+        print(f"len of old dict {len(cities_dict)} len of new dict {len(new_dict)}")
+        pickle.dump(new_dict, open(pickle_name, 'wb'))
+
+    # print(top_geonameids)
+    return top_geonameids
+
+def get_results_by_geonameid(target_list, source_file = '20240925_normal_error_vs_elev_stdev_exact.csv'):
+    with open(source_file, "r", encoding="ISO-8859-1") as file:
+        reader = csv.reader(file)
+        header = next(reader)  # Read the header row
+        data = {row[0]: float(row[1]) for row in reader}
+    all_cities = pickle.load(open('cities15000_dict_all.pickle', 'rb'))
+    count = 0
+    sorted_by_error_city_list = []
+    for geonameid in target_list:
+        try:
+            # print(f"{geonameid}:{all_cities[geonameid]['name']},{data[geonameid]}")
+            count += 1
+            sorted_by_error_city_list.append([int(geonameid), all_cities[geonameid]['name'],float(data[geonameid])])
+        except:
+            # print(f"{geonameid}:{all_cities[geonameid]['name']} has no data")
+            continue
+
+    sorted_by_error_city_list.sort(key=lambda x: x[2])
+    for row in sorted_by_error_city_list:
+        print(row)
+
+    print(count)
+    # for city in all_cities:
+    #     print(f"{city}: {all_cities[city]}")
+    # print(target_list)
+
+
+def  compare_denylist_to_normal(denylist_source='20240912_deny_list_merged_output.csv',
+                                normal_source='cities_error_and_counts.csv',
+                                geonameid_reference='cities15000_dict_all.pickle'):
+    new_dict = {}
+    dupe_count = 0
+
+    cities_dict_all = pickle.load(open(geonameid_reference, 'rb'))
+    for line in (open(denylist_source,'r',encoding="ISO-8859-1")):
+        # print(line.strip())
+        city=line.split(',')[1].split('__')[0]
+        # print(city)
+        for geonameid in cities_dict_all:
+            if cities_dict_all[geonameid]['name'] == city:
+                if geonameid in new_dict:
+                    # print(f"{geonameid} is duplicated")
+                    dupe_count += 1
+                    new_dict[geonameid]['valid'] = 0 # 0 indicates duplication and invalid
+                else:
+                    new_dict[geonameid] = {}
+                    new_dict[geonameid]['name'] = city
+                    new_dict[geonameid]['denylist_error'] = float(line.split(',')[-2])
+                    new_dict[geonameid]['denylist_sample_counts'] = int(line.split(',')[-1])
+                    new_dict[geonameid]['valid'] = 1 # 1 indicates partial entry, not yet valid
+
+    for line in (open(normal_source, 'r', encoding="ISO-8859-1")):
+        geonameid=line.split(',')[1].split('_')[0]
+        print(geonameid,geonameid in new_dict)
+        if geonameid in new_dict and new_dict[geonameid]['valid'] == 1:
+            new_dict[geonameid]['valid'] = 2
+            new_dict[geonameid]['normal_error'] = float(line.split(',')[-2])
+            new_dict[geonameid]['normal_sample_counts'] = int(line.split(',')[-1])
+
+
+    valid_entries = [new_dict[geonameid] for geonameid in new_dict if new_dict[geonameid]['valid'] == 2]
+    print(valid_entries,len(valid_entries))
+
+    return new_dict
 
 if __name__ == '__main__':
     list_of_files = ['20240921_normal_1500cities_combined_results.csv',
                      '20240921_normal_1500cities_combined_results_remainder1.csv',
                      '20240921_normal_1500cities_combined_results_remainder2.csv']
-    compare_errors()
+    # test()
+    compare_denylist_to_normal()
+    # get_results_by_geonameid(get_top_population_cities()) # default top 50 US cities
+    # get_results_by_geonameid(get_top_population_cities([
+    #     "AL", "AD", "AM", "AT", "BY", "BE", "BA", "BG", "HR", "CY", "CZ", "DK", "EE", "FI", "FR",
+    #     "GE", "DE", "GR", "HU", "IS", "IE", "IT", "XK", "LV", "LI", "LT", "LU", "MT", "MD", "MC",
+    #     "ME", "NL", "MK", "NO", "PL", "PT", "RO", "SM", "RS", "SK", "SI", "ES", "SE", "CH", "UA",
+    #     "GB", "VA"
+    # ],55))
+    get_top_population_cities(country_list=['US'], n=60, make_pickle=True, pickle_name = 'top_60_US_cities.pickle')
+
+    get_top_population_cities(country_list=    [
+            "AL", "AD", "AM", "AT", "BY", "BE", "BA", "BG", "HR", "CY", "CZ", "DK", "EE", "FI", "FR",
+            "GE", "DE", "GR", "HU", "IS", "IE", "IT", "XK", "LV", "LI", "LT", "LU", "MT", "MD", "MC",
+            "ME", "NL", "MK", "NO", "PL", "PT", "RO", "SM", "RS", "SK", "SI", "ES", "SE", "CH", "UA",
+            "GB", "VA"
+    ], n=60, make_pickle=True, pickle_name = 'top_60_Euro_cities.pickle')
+
+    # compare_errors()
     # combine_csv_files_to_dict(list_of_files)
     # get_data_counts_to_dict()
     # make_merged_output_csv(combine_csv_files_to_dict(list_of_files))

@@ -6,6 +6,10 @@ import re
 import csv
 import numpy as np
 from city_elevation_processor import test_and_plot_selection, get_square_corners, read_exact_elevation_from_zip_file
+from results_processor import compare_denylist_to_normal
+import glob
+import os
+import pickle
 
 
 def plot_and_save_samples_vs_error(merged_file = 'cities_error_and_counts.csv'):#'20240912_deny_list_merged_output.csv' ):
@@ -20,7 +24,7 @@ def plot_and_save_samples_vs_error(merged_file = 'cities_error_and_counts.csv'):
     plt.scatter(x, y, c='blue', alpha=0.2, edgecolors='black')
 
     # Add titles and labels
-    plt.title(f'Mean Error vs Sample Quantity in {len(x)} Cities')
+    plt.title(f'Mean Error vs Sample Quantity')
     plt.ylabel('Number of Samples')
     plt.xlabel('Mean Error (m)')
 
@@ -36,6 +40,55 @@ def plot_and_save_samples_vs_error(merged_file = 'cities_error_and_counts.csv'):
     print(f'Pearson correlation coefficient: {correlation_coefficient}')
     print(f'P-value: {p_value}')
     print(f"cities count: {len(x)}")
+    print(f"Mean samples_count {np.mean(y)} and error {np.mean(x)} ")
+
+def plot_denylist_and_error():
+
+    results_dict = compare_denylist_to_normal()
+
+    x_vals = []
+    y_vals = []
+
+    max_ratio = 1
+    max_geonameid = ''
+    for geonameid in results_dict:
+        if results_dict[geonameid]['valid'] == 2:
+            try:
+                x1 = results_dict[geonameid]['normal_error']
+                x2 = results_dict[geonameid]['denylist_error']
+                error_diff = x1 - x2 # more positive is more improvement
+                y1 = results_dict[geonameid]['normal_sample_counts']
+                y2 = results_dict[geonameid]['denylist_sample_counts']
+                counts_ratio =  float(y1)/float(y2)
+                if y1 > y2: # we only care about sites where denylist was actually used..
+                    x_vals.append(error_diff)
+                    y_vals.append(counts_ratio)
+                    # print(f"normal, denylist error {x1},{x2} counts {y1,y2}")
+                    if counts_ratio > 1:
+                        print(geonameid,results_dict[geonameid]['name'],counts_ratio, error_diff, y1, y2)
+            except Exception as e:
+                print(f"Error processing values {e}")
+
+    plt.scatter(x_vals, y_vals, c='blue', alpha=0.2, edgecolors='black')
+
+    # Add titles and labels
+    plt.title(f'Error δ vs Denylist Ratio')
+    plt.ylabel('Denylist Ratio')
+    plt.xlabel('Mean Error δ (m)')
+
+
+    filename = f"Error diff vs denylist ratio.png"
+    plt.savefig(filename, dpi=300)
+    # Show plot
+    plt.show()
+
+    # Calculate Pearson correlation coefficient and p-value
+    correlation_coefficient, p_value = pearsonr(x_vals, y_vals)
+
+    print(f'Pearson correlation coefficient: {correlation_coefficient}')
+    print(f'P-value: {p_value}')
+    print(f"cities count: {len(x_vals)}")
+    print(f"Mean samples_count {np.mean(y_vals)} and error {np.mean(x_vals)} ")
 
 # Fairland,US,39.07622,-76.95775,44.56766372846624 vs 2024_09_11-23_02_46-results.txt,Adeje__ES8.csv,1434.1417,4511
 # can take city_elev_stdev.csv or city_elev_stdev_exact.csv with more precise selection area
@@ -55,7 +108,7 @@ def save_elevationstdev_vs_error(elev_stdev_file = 'city_elev_stdev_exact.csv',
         for index,row in error_data.iterrows():
             # print(f"index {index} row{row} city_id:{row['city_id']}")
             try:
-                city_id = int(row['city_id'].split('_')[0])
+                city_id = int(row['city_id'].split('_')[0].strip('"'))
                 # print(city_id)
             except Exception as e:
                 print(f"Failed to retrieve city_id for {row['city_id']} with error {e}")
@@ -91,7 +144,7 @@ def plot_elevationstdev_vs_error(input_file = '20240912_error_vs_elev_stdev_exac
     plt.scatter(x, y, c='blue', alpha=0.2, edgecolors='black')
 
     # Add titles and labels
-    plt.title(f'Mean Error vs Elevation σ in 5000+ Cities')
+    plt.title(f'Mean Error vs Elevation σ')
     plt.ylabel('Elevation σ² (m)')
     plt.xlabel('Mean Error (m)')
 
@@ -157,26 +210,49 @@ def gps_to_array_coords(latitudes, longitudes, bottom_left, top_right, m, n):
         print(f"WARNING: {count}/{len(latitudes)} points fell outside of lat/lon bounds")
     return x_vals, y_vals
 
-def plot_node_locations_on_elevation(city_id = "Dallas__US8",
-    data_directory = r"C:\Users\ps\OneDrive\Documents\DL_Image_Localization_Results\20240912_15000cities_denylist\generated"):
-    filepath = f"{data_directory}\\{city_id}.csv"
+
+def plot_node_locations_on_elevation(geonameid = 5520993, denylist_filter = False):
+    # [4791259, 'Virginia Beach', 689.3279]
+
+    denylist = []
+    count = 0
+    if denylist_filter:
+        with open('deny_lat_list.csv', 'r') as f:
+            denylist = set(f.readline().strip().split(','))
+
+
+
+    data_directory = r"C:\Users\ps\OneDrive\Documents\DL_Image_Localization_Results\20240921_15000cities_normal\generated"
+    filepath = glob.glob(os.path.join(data_directory, str(geonameid) + '*'))[0]
+    # print(filepath)
     lats = []
     lons = []
     with open(filepath,'r') as input_data_file:
         data = input_data_file.readlines()
     for line in data[1:]: # skip header line
-        print(line)
-        lats.append(float(line.split(',')[1]))
+        # print(line)
+        lat = line.split(',')[1]
+
+        if denylist_filter:
+            # print(lat)
+            if lat in denylist:
+                print(f"lat {lat} in denylist, skipping..")
+                continue
+        lats.append(float(lat))
         lons.append(float(line.split(',')[2]))
 
+    print(f"input len {len(data[1:])} filtered len {len(lats)}")
 
     with open("city_elev_stdev_exact.csv",'r', encoding="ISO-8859-1") as city_data_file:
+        city_data_file.readline() # skip header
         for row in city_data_file:
+
             # a quick and dirty way to get the row that matches city_id, assuming city is unique for a country code
-            if city_id.split("__")[0].replace("_"," ") == row.split(",")[1]:
+            if int(geonameid) == int(row.split(",")[0]):
                 lat = float(row.split(",")[3])
                 lon = float(row.split(",")[4])
                 print(row,lat,lon)
+                city_name = row.split(",")[1]
                 break
     BL,TR = get_square_corners(lat, lon, side_length=8000)
     elevation_data, _, _, _ = read_exact_elevation_from_zip_file(BL[0],BL[1],TR[0],TR[1])
@@ -192,7 +268,7 @@ def plot_node_locations_on_elevation(city_id = "Dallas__US8",
     plt.figure(figsize=(10, 8))
     plt.imshow(elevation_data, cmap='terrain', vmin=np.min(elevation_data), vmax=np.max(elevation_data))
     plt.colorbar(label='Elevation (m)')
-    plt.title(f'Elevation Map for {city_id}')
+    plt.title(f'Elevation Map for {city_name}')
     plt.xlabel('Longitude')
     plt.ylabel('Latitude')
     plt.scatter(x_vals,y_vals, c='blue', alpha=0.2, edgecolors='black')
@@ -202,8 +278,9 @@ def plot_node_locations_on_elevation(city_id = "Dallas__US8",
 
 
 if __name__ == '__main__':
-    save_elevationstdev_vs_error()
-    plot_and_save_samples_vs_error('20240925_normal_error_vs_elev_stdev_exact.csv')
-    #plot_elevationstdev_vs_error()
-    # plot_node_locations_on_elevation() # TODO this is maching up the wrong Dallas's.. need to fix this and make unique
+    plot_denylist_and_error()
+    # save_elevationstdev_vs_error()
+    # plot_and_save_samples_vs_error()
+    # plot_elevationstdev_vs_error('20240925_normal_error_vs_elev_stdev_exact.csv')
+    # plot_node_locations_on_elevation(5095779,denylist_filter = True) # TODO this is maching up the wrong Dallas's.. need to fix this and make unique
     # TODO will adjust this with the new cities format that has geonameid in the filename

@@ -134,8 +134,8 @@ def filter_deny_lat(lat1,lat2):
 def hello_world():
     return 'Hello, World!'
 
-@app.route('/generate_datasets/<cities_data>')
-def generate_datasets(cities_data):
+@app.route('/generate_datasets/<cities_data>/<denylist>')
+def generate_datasets(cities_data,denylist):
     global global_dataset
     global global_dataset_loaded
 
@@ -176,11 +176,11 @@ def generate_datasets(cities_data):
                 print(f"Couldn't save local dataset {data_filename} because {e}")
             cache_datafile(data_filename)
 
-            # this next line enables the denylist
-            rx_blacklist = [0]
-            # uncomment to enable denylist.
-            #rx_blacklist = filter_deny_lat(bl_coords[0],tr_coords[0])
 
+            if denylist == 'denylist_enabled':
+                rx_blacklist = filter_deny_lat(bl_coords[0],tr_coords[0])
+            else:
+                rx_blacklist = [0]
 
             task1 = celery.signature("tasks.train_one_and_log",
                                      args=[{**params,"data_filename": data_filename,
