@@ -2,18 +2,38 @@ import numpy as np
 import torch
 import pickle
 from localization import DLLocalization
+from localization import PhysLocalization
 from locconfig import LocConfig
 from dataset import RSSLocDataset
 from models import CoMLoss, SlicedEarthMoversDistance
 import csv
 from coordinates import HELIUMSD_LATLON
 import os
+import math
 
 from attacker import batch_wrapper, get_all_attack_preds_without_grad
 
 # this is intended to be used only for the helium network dataset (data set 9 in dataset.py)
 # need to setup this file to read parameters from a json structure that gets passed in..
 
+# returns BL TR corner coordinates of a square centered at lat,lon
+def get_square_corners(lat, lon, side_length):
+    # Earth's radius in meters
+    R = 6378137.0
+
+    # Convert the side length from meters to degrees
+    d_lat = (side_length / 2) / R * (180 / math.pi)
+    d_lon = (side_length / 2) / (R * math.cos(math.pi * lat / 180)) * (180 / math.pi)
+
+    # Bottom-left coordinates
+    bottom_left_lat = lat - d_lat
+    bottom_left_lon = lon - d_lon
+
+    # Top-right coordinates
+    top_right_lat = lat + d_lat
+    top_right_lon = lon + d_lon
+
+    return (bottom_left_lat, bottom_left_lon), (top_right_lat, top_right_lon)
 
 def is_between(number, var1, var2):
     lower_bound = min(var1, var2)
@@ -189,7 +209,7 @@ def main_process(passed_params = {None}):
     if 'func_list' in passed_params:
         func_list = passed_params['func_list']
     else:
-        func_list = ["COM","MSE","EMD"]
+        func_list = ["COM","MSE","EMD"] # ["PATHLOSS"] for physics-based non-ML model
     if 'results_type' in passed_params:
         results_type = passed_params['results_type']
     else:
@@ -229,6 +249,8 @@ def main_process(passed_params = {None}):
         loss_funcs.append(torch.nn.MSELoss())
     if "EMD" in func_list:
         loss_funcs.append(SlicedEarthMoversDistance(num_projections=100, scaling=0.01, p=1))
+    if "PATHLOSS" in func_list:
+        loss_funcs = ["PATHLOSS"]
 
 
     for random_state in range(0, num_training_repeats):
@@ -243,6 +265,7 @@ def main_process(passed_params = {None}):
     #     param_list = [param for param in cmd_line_params if param[3] == args.random_ind]
     # else:
     param_list = cmd_line_params
+
 
     for ind, param_set in enumerate(param_list):
         dataset_index, split, random_state, loss_func = param_set
@@ -278,41 +301,51 @@ def main_process(passed_params = {None}):
 
         rldataset.print_dataset_stats()
 
-        dlloc = DLLocalization(rldataset, loss_object=loss_func)
+        print("about to run model")
 
-        if should_train:
-            print('Training on dataset', rldataset.train_key, 'for', max_num_epochs, 'epochs')
-            print('Training', PATH)
-            dlloc.train_model(max_num_epochs, save_model_file=PATH, load_model=should_load_model,
-                              restart_optimizer=restart_optimizer, load_model_file=PATH)
-            results = save_results(dlloc, rldataset, model_filename, pickle_filename)
-        else:
-            results = save_results(dlloc, rldataset, model_filename, pickle_filename)
-        for key in results['err']:
-            # print("results err mean()")
-            #********************* this is the important part ******************************
-            print(key, results['err'][key].mean())
-            if results_type == "remove_one_results" and "_test" in key:
-                tmp = param_set
-                tmp[-1] = str(tmp[-1]) # convert obj to string so it can be serializable
-                result_row = tmp + [key] + [str(results['err'][key].mean())] # float->str so it's serializable
-                all_results[rx_blacklist[0]].append(result_row)
-                # only the test values, not train/train_val/2test_extra
-            if results_type == "split_timespan_results" and "_test" in key:
-                tmp = param_set
-                tmp[-1] = str(tmp[-1]) # convert obj to string so it can be serializable
-                result_row = tmp + [key] + [str(results['err'][key].mean())] # float->str so it's serializable
-                all_results[results_key].append(result_row)
-                # only the test values, not train/train_val/2test_extra
+        if "PATHLOSS" in func_list:
+            print("executing PATHLOSS model")
+            physloc = PhysLocalization(rldataset)
+            all_results[rx_blacklist[0]] = physloc.rss_loc_dataset.data
 
-            if results_type == "default": # record all the error types
-                tmp = param_set
-                tmp[-1] = str(tmp[-1])  # convert obj to string so it can be serializable
-                result_row = tmp + [key] + [str(results['err'][key].mean())]  # float->str so it's serializable
-                all_results[rx_blacklist[0]].append(result_row)
+        else: # do regular DL Localization models
 
-    # TODO maybe make this a json.dump string?
-    return all_results # return main()
+            # here is where we would want to select physics-based vs DLL model; TODO: create new Localization class
+            dlloc = DLLocalization(rldataset, loss_object=loss_func)
+
+            if should_train:
+                print('Training on dataset', rldataset.train_key, 'for', max_num_epochs, 'epochs')
+                print('Training', PATH)
+                dlloc.train_model(max_num_epochs, save_model_file=PATH, load_model=should_load_model,
+                                  restart_optimizer=restart_optimizer, load_model_file=PATH)
+                results = save_results(dlloc, rldataset, model_filename, pickle_filename)
+            else:
+                results = save_results(dlloc, rldataset, model_filename, pickle_filename)
+            for key in results['err']:
+                # print("results err mean()")
+                #********************* this is the important part ******************************
+                print(key, results['err'][key].mean())
+                if results_type == "remove_one_results" and "_test" in key:
+                    tmp = param_set
+                    tmp[-1] = str(tmp[-1]) # convert obj to string so it can be serializable
+                    result_row = tmp + [key] + [str(results['err'][key].mean())] # float->str so it's serializable
+                    all_results[rx_blacklist[0]].append(result_row)
+                    # only the test values, not train/train_val/2test_extra
+                if results_type == "split_timespan_results" and "_test" in key:
+                    tmp = param_set
+                    tmp[-1] = str(tmp[-1]) # convert obj to string so it can be serializable
+                    result_row = tmp + [key] + [str(results['err'][key].mean())] # float->str so it's serializable
+                    all_results[results_key].append(result_row)
+                    # only the test values, not train/train_val/2test_extra
+
+                if results_type == "default": # record all the error types
+                    tmp = param_set
+                    tmp[-1] = str(tmp[-1])  # convert obj to string so it can be serializable
+                    result_row = tmp + [key] + [str(results['err'][key].mean())]  # float->str so it's serializable
+                    all_results[rx_blacklist[0]].append(result_row)
+
+        # TODO maybe make this a json.dump string?
+        return all_results # return main()
 
 
 def save_results(dlloc: DLLocalization, rldataset, model_filename, pickle_filename):

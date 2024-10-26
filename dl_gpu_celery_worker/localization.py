@@ -10,13 +10,129 @@ from dataset import RSSLocDataset
 #from attacker import get_random_attack_vec, worst_case_attack
 
 from scipy.stats import spearmanr
+from scipy.optimize import minimize_scalar
 import re
+import code
 
 def get_trailing_number(s):
     m = re.search(r'\d+$', s)
     return int(m.group()) if m else None
 
+def calc_distances(txes, rxes):
+    #distances = np.linalg.norm(end_points - start_points, axis=1)
+    distances = np.sqrt((txes[:,0]-rxes[:,0])*(txes[:,0]-rxes[:,0]) + (txes[:,1]-rxes[:,1])*(txes[:,1]-rxes[:,1]))
+
+    return distances
+
+class PhysLocalization():
+    # runs physics-based MSE pathloss model(s)
+    def __init__(
+            self,
+            rss_loc_dataset: RSSLocDataset,
+
+        ):
+        self.params = rss_loc_dataset.params
+        self.rss_loc_dataset = rss_loc_dataset
+        if self.params.include_elevation_map: # not yet implemented
+            pass
+        self.device = self.rss_loc_dataset.params.device # for CUDA, may or may not use..
+        self.img_size = np.array([self.rss_loc_dataset.img_height(), self.rss_loc_dataset.img_width()])
+        self.calculate_pathloss()
+        self.calculate_error()
+
+
+    def calculate_pathloss(self):
+        # here we don't need separate validation data, so we use _train and _train_val for pathloss param estimation
+        # start with a simple linear path loss, RSS/distance = x, next try logarithmic
+
+        #distances = calc_distances(self.params.start_points, self.params.end_points)
+
+        #physloc.rss_loc_dataset.data (data is type Samples from dataset.py) with [None] being the full sample set
+
+        # print(f"rx_vecs from self.rss_loc_dataset.data['0.2testsize_train'] {self.rss_loc_dataset.data['0.2testsize_train'].rx_vecs}")
+        # print(f"tx_vecs from self.rss_loc_dataset.data['0.2testsize_train'] {self.rss_loc_dataset.data['0.2testsize_train'].tx_vecs}")
+#        print(self.rss_)
+
+        self.rss_loc_dataset.data[None].rx_vecs[0][:, 1:3] # just the lat/lon (y/x) coordinates
+
+        self.distances_array = []
+        self.rss_array = []
+        self.combined_array = [] # [[distance,rss]..]
+        tx_count = len(self.rss_loc_dataset.data[None].tx_vecs)
+
+        for index in range(tx_count):
+            txes = np.array(
+                [self.rss_loc_dataset.data[None].tx_vecs[index]] * len(self.rss_loc_dataset.data[None].rx_vecs[index][:, 1:3]),
+                dtype=float)[:, 0]
+            rxes = self.rss_loc_dataset.data[None].rx_vecs[index][:,1:3]
+
+            rss_tmps = np.array(self.rss_loc_dataset.data[None].rx_vecs[index][:, 0:1],dtype=float)
+            dist_tmps = np.array(calc_distances(txes, rxes))
+
+            self.rss_array.append(rss_tmps)
+            self.distances_array.append(dist_tmps)
+            for dist_tmp, rss_tmp in zip(dist_tmps,rss_tmps):
+                self.combined_array.append([float(dist_tmp), float(rss_tmp)])
+        # for tx_vec, rx_vec in zip(self.rss_loc_dataset.data[None].tx_vecs,self.rss_loc_dataset.data[None].rx_vecs):
+        #     distances = np.linalg.norm(np.array(tx_vec*len(rx_vec), dtype=float) - np.array(rx_vec[:, 1:3],dtype=float), axis=1)
+        #     rss = np.array(rx_vec[:, 0:1],dtype=float)
+        #     distances_array.append(distances)
+        #     rss_array.append(rss)
+
+        # for a linear pathloss factor
+
+        tmp_array = np.array(self.combined_array)
+        tmp_array = np.ma.masked_equal(tmp_array,0)
+        res = tmp_array[:,0]/tmp_array[:,1]
+
+        self.rss_dist_ratio = res.mean()
+
+        # for a log10 pathloss model (like traditional free space path loss)
+
+        seq = [10**i for i in range(20)]
+
+        min_error = 999999999
+        min_pl_factor = 0
+        for pl_factor in range(10,10000):
+            error_array = self.calculate_error("log10",pl_factor)
+            print(f"for pl_factor {pl_factor}, mean error is {error_array.mean()}")
+            if error_array.mean() < min_error:
+                min_error = error_array.mean()
+                min_pl_factor = pl_factor
+        print(f"min_pl_factor {min_pl_factor} with min error {min_error}")
+
+
+        code.interact(local=locals())
+
+    # def error_optimizer_function(self,pl_factor):
+    #     error_array = self.calculate_error("log10",pl_factor)
+
+    def calculate_error(self, option="rss_dist_ratio", pl_factor = 1):
+
+
+        if option == "rss_dist_ratio":
+            dist_array_est = np.array(self.combined_array)[:,1]*self.rss_dist_ratio
+
+        elif  option == "log10":
+            dist_array_est = np.log10(np.array(self.combined_array)[:,1]) + pl_factor
+
+        else:
+            return None
+
+        error_array = np.abs(np.array(self.combined_array)[:,0] - dist_array_est)
+        error_array = error_array[np.isfinite(error_array)] # get rid of any inf or NaN values
+        # print(error_array)
+        # print(error_array.mean())
+
+        return error_array
+
+
+
+
+
+
 class DLLocalization():
+    # runs DL Localization models
     def __init__(
             self, 
             rss_loc_dataset: RSSLocDataset, 

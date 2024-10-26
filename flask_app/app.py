@@ -73,6 +73,25 @@ def load_global_dataset(filepath):
     except Exception as e:
         print(f"Could not load dataset {filepath} because {e}")
 
+def load_dataset_from_csv(filepath):
+    try:
+        dataset = pd.read_csv(filepath)
+        column_names = dataset.columns.tolist()
+
+        print(column_names)
+
+        column_names[0] = 'time'
+        column_names[1] = 'lat1'
+        column_names[2] = 'lon1'
+        column_names[3] = 'lat2'
+        column_names[4] = 'lon2'
+        column_names[5] = 'txpwr'
+        column_names[6] = 'rxpwr'
+
+        dataset.columns = column_names
+        return dataset
+    except Exception as e:
+        print(f"Could not load dataset {filepath} because {e}")
 
 # geofilter global dataset to produce regional subset
 def filter_coordinates(df, coordinates):
@@ -129,10 +148,93 @@ def filter_deny_lat(lat1,lat2):
         filtered_lats = [lat for lat in result if float(lat1) < float(lat) < float(lat2)]
         return filtered_lats
 
+def get_from_global_dataset(lat1, lon1, lat2, lon2):
+    global global_dataset
+    global global_dataset_loaded
+
+    if global_dataset_loaded:
+        local_dataset = filter_coordinates(global_dataset,
+                                           ((float(lat1), float(lon1)), (float(lat2), float(lon2))))
+        #local_dataset.to_csv(outfile_name, index=False)
+
+        return local_dataset.to_string()
+    else:
+        return None
+
 
 @app.route('/')
 def hello_world():
     return 'Hello, World!'
+
+# this one doesn't work yet..
+@app.route('/run_one_model_corners/<dataset_filename>/<lat1>/<lon1>/<lat2>/<lon2>')
+def run_one_model_corners(dataset_filename,lat1,lon1,lat2,lon2):
+    global global_dataset_loaded
+    print(f"Processing Dataset: {dataset_filename} with coords: {lat1,lon1,lat2,lon2}")
+
+    params = {"max_num_epochs": 50, "num_training_repeats": 1, "batch_size": 64, "rx_blacklist": [0],
+              'func_list': ["MSE","COM","EMD"], "data_filename": "",
+              "results_type": "default", "coordinates" : [(lat1,lon1),(lat2,lon2)]}
+
+
+    local_dataset = get_from_global_dataset(lat1,lon1,lat2,lon2)
+
+    if local_dataset is None:
+        print("dataset not available")
+        return (f"Dataset not available, global dataset loaded: {global_dataset_loaded},"
+            f" could not process {dataset_filename} at {lat1,lon1,lat2,lon2}")
+    else:
+        print("local_dataset loaded")
+
+    try:
+        local_dataset.to_csv(dataset_filename, index=False)
+    except Exception as e:
+        print(f"Couldn't save local dataset {dataset_filename} because {e}")
+    cache_datafile(dataset_filename)
+
+
+    rx_blacklist = [0]
+
+    task1 = celery.signature("tasks.train_one_and_log",
+                             args=[{**params,"data_filename": dataset_filename,
+                                    "rx_blacklist": rx_blacklist,
+                                    "coordinates": [(lat1,lon1),(lat2,lon2)]}],
+                             options={"queue": "GPU_queue"})
+    task1.apply_async()
+
+    return "Processed input and started task."
+
+# haven't tested this yet
+@app.route('/run_one_model_center/<dataset_filename>/<square_length>/<center_lat>/<center_lon>')
+def run_one_model_center(dataset_filename,center_lat,center_lon,square_length=8000):
+
+    params = {"max_num_epochs": 50, "num_training_repeats": 1, "batch_size": 64, "rx_blacklist": [0],
+              'func_list': ["MSE","COM","EMD"], "data_filename": "",
+              "results_type": "default", "coordinates" : []}
+
+
+    bl_coords, tr_coords = get_square_corners(center_lat,center_lon,square_length)
+    local_dataset = filter_coordinates(load_dataset_from_csv(dataset_filename),
+                                       ((float(bl_coords[0]), float(bl_coords[1])),
+                                        (float(tr_coords[0]), float(tr_coords[1]))))
+
+    try:
+        local_dataset.to_csv(dataset_filename, index=False)
+    except Exception as e:
+        print(f"Couldn't save local dataset {dataset_filename} because {e}")
+    cache_datafile(dataset_filename)
+
+
+    rx_blacklist = [0]
+
+    task1 = celery.signature("tasks.train_one_and_log",
+                             args=[{**params,"data_filename": dataset_filename,
+                                    "rx_blacklist": rx_blacklist,
+                                    "coordinates": [bl_coords, tr_coords]}],
+                             options={"queue": "GPU_queue"})
+    task1.apply_async()
+
+    return "Processed input and started task."
 
 @app.route('/generate_datasets/<cities_data>/<denylist>')
 def generate_datasets(cities_data,denylist):
@@ -431,9 +533,10 @@ def log_results(results):
 
 
 if __name__ == '__main__':
-    filepath = "/datasets/global/all_data.csv"
+    filepath = "/datasets/global/all_data.csv" # this maps externally do global dataset file in remote_dev.env
     print("Loading global dataset..",flush=True) # print immediately
     global_dataset_loaded = False # flag updates when global_dataset load completes
     global_dataset = None # placeholder for global variable
+    # only uncomment below if needed, because it takes a while to load otherwise
     threading.Thread(target=load_global_dataset, args=(filepath,)).start()
     app.run(host='0.0.0.0',debug=True)

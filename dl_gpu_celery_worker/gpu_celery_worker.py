@@ -106,7 +106,7 @@ def split_and_group_timespan(params):
 
 
 # Added acks_late so acknowledgement occurs after completion, with a time limit of 20 min
-# this will re-queue the task if a worker is interrupted (e.g. a vast machine is outbid and removed during processing)
+# this should re-queue the task if a worker is interrupted (e.g. a vast machine is outbid and removed during processing)
 #
 @celery.task(name='tasks.group_remove_one2',acks_late=True, time_limit=2400)
 def group_remove_one2(params):

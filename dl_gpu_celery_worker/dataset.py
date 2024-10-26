@@ -1310,7 +1310,7 @@ class RSSLocDataset():
         #all_rx = []
         #tx_count = []
         #rx_count = []
-        for entry in data_list:
+        for entry in data_list: # like [[tx_locs, rx_tups, tx_gains],..]
         #    if len(entry[0]) == 3 and [-1.0, -1.0] in entry[0]:
         #        continue
         #    tx_count.append(len(entry[0]))
@@ -1367,7 +1367,6 @@ class RSSLocDataset():
                 continue
             if len(entry[0]) == 0:
                 continue
-                tx_vecs.append( np.array(entry[0])) 
             else:
                 #tx_vecs.append( self.buffer + (np.array(entry[0]) - min_tx_arr)/ self.meter_scale) 
                 tx_vecs.append( np.array(entry[0])) 
@@ -1381,12 +1380,12 @@ class RSSLocDataset():
             elif self.params.dataset_index == 7:
                 entry_min_rss = -126
                 entry_max_rss = -70
-            elif self.params.dataset_index == 9:
-                entry_min_rss = -136
-                entry_max_rss = -45
+            elif self.params.dataset_index == 9: # changed from hard-coded rss..
+                entry_min_rss = min_rss
+                entry_max_rss = max_rss
             rx_vec = np.zeros((len(entry[1]),5))
             #rx_vec[:,0] = entry[1][:,0]/ np.array([self.max_rss - self.noise_floor, 1, 1, 1])
-            rx_vec[:,0] = (entry[1][:,0] - entry_min_rss)/ (entry_max_rss - entry_min_rss)
+            rx_vec[:,0] = (entry[1][:,0] - entry_min_rss)/ (entry_max_rss - entry_min_rss) # normalizes..
             if self.params.dataset_index == 1:
                 rx_vec[:,1:4] = entry[1][:,1:]
             elif self.params.dataset_index < 6:
