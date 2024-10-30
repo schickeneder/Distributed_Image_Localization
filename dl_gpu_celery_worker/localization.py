@@ -13,16 +13,32 @@ from scipy.stats import spearmanr
 from scipy.optimize import minimize_scalar
 import re
 import code
+from itertools import product
+
 
 def get_trailing_number(s):
     m = re.search(r'\d+$', s)
     return int(m.group()) if m else None
 
 def calc_distances(txes, rxes):
-    #distances = np.linalg.norm(end_points - start_points, axis=1)
-    distances = np.sqrt((txes[:,0]-rxes[:,0])*(txes[:,0]-rxes[:,0]) + (txes[:,1]-rxes[:,1])*(txes[:,1]-rxes[:,1]))
+    # distances = np.linalg.norm(end_points - start_points, axis=1)
 
-    return distances
+    try:
+        distances = np.sqrt((txes[:,0]-rxes[:,0])*(txes[:,0]-rxes[:,0]) + (txes[:,1]-rxes[:,1])*(txes[:,1]-rxes[:,1]))
+        return distances
+    except:
+        pass
+
+    try:
+        distances = np.sqrt((txes [0] - rxes[0]) * (txes[0] - rxes[0]) + (txes[1] - rxes[1]) * (txes[1] - rxes[1]))
+        return distances
+    except:
+        pass
+
+    print(f"failed to calculate distances for coords {txes}, {rxes}")
+    return None
+
+
 
 class PhysLocalization():
     # runs physics-based MSE pathloss model(s)
@@ -39,7 +55,11 @@ class PhysLocalization():
         self.img_size = np.array([self.rss_loc_dataset.img_height(), self.rss_loc_dataset.img_width()])
         self.calculate_pathloss()
         self.calculate_error()
+        self.test_model()
 
+    def error_optimizer_function(self,pl_factor, option):
+        error_array = self.calculate_error(option,pl_factor)
+        return error_array.mean()
 
     def calculate_pathloss(self):
         # here we don't need separate validation data, so we use _train and _train_val for pathloss param estimation
@@ -87,34 +107,41 @@ class PhysLocalization():
 
         self.rss_dist_ratio = res.mean()
 
+        # linear regression
+        self.linear_PL = minimize_scalar(self.error_optimizer_function, bounds=(0, 1000000), method='bounded', args="rss_dist_ratio")
+
+
         # for a log10 pathloss model (like traditional free space path loss)
 
-        seq = [10**i for i in range(20)]
+        # seq = [10**i for i in range(20)]
+        #
+        # min_error = 999999999
+        # min_pl_factor = 0
+        # for pl_factor in range(10,10000):
+        #     error_array = self.calculate_error("log10",pl_factor)
+        #     print(f"for pl_factor {pl_factor}, mean error is {error_array.mean()}")
+        #     if error_array.mean() < min_error:
+        #         min_error = error_array.mean()
+        #         min_pl_factor = pl_factor
+        # print(f"min_pl_factor {min_pl_factor} with min error {min_error}")
 
-        min_error = 999999999
-        min_pl_factor = 0
-        for pl_factor in range(10,10000):
-            error_array = self.calculate_error("log10",pl_factor)
-            print(f"for pl_factor {pl_factor}, mean error is {error_array.mean()}")
-            if error_array.mean() < min_error:
-                min_error = error_array.mean()
-                min_pl_factor = pl_factor
-        print(f"min_pl_factor {min_pl_factor} with min error {min_error}")
+        #logarithmic regression
+        self.log_PL = minimize_scalar(self.error_optimizer_function, bounds=(0, 1000000), method='bounded', args="log10")
 
+        # TODO implement a pointwise interpolated regression function; i.e. for each RSS value it looks up distance
+        # in a lookup table or interpolates if no data exists for that range; empirically derived look-up table
+        # call this one discrete pathloss
 
-        code.interact(local=locals())
+        # code.interact(local=locals())
 
-    # def error_optimizer_function(self,pl_factor):
-    #     error_array = self.calculate_error("log10",pl_factor)
-
-    def calculate_error(self, option="rss_dist_ratio", pl_factor = 1):
+    # calculates error in pathloss models against the input training data
+    def calculate_error(self, option="rss_dist_ratio"):
 
 
         if option == "rss_dist_ratio":
-            dist_array_est = np.array(self.combined_array)[:,1]*self.rss_dist_ratio
-
+            dist_array_est = np.array(self.combined_array)[:,1]*self.rss_dist_ratio + self.linear_PL
         elif  option == "log10":
-            dist_array_est = np.log10(np.array(self.combined_array)[:,1]) + pl_factor
+            dist_array_est = np.log10(np.array(self.combined_array)[:,1]) + self.log_PL
 
         else:
             return None
@@ -126,8 +153,57 @@ class PhysLocalization():
 
         return error_array
 
+    # tests pathloss model against receivers
+    # TODO: Need to fix to actually use pathloss instead of true distance.., right now it is only calculating the
+    # centroid and sometimes gets "lucky"
+    # instead need to minimize the |distance - estimated distance via pathloss model| from selected pixel to each RXer
+    def test_model(self,option="log10"):
+        error_estimate_list = []
+        max_x,min_x,max_y,min_y = (self.rss_loc_dataset.max_x,self.rss_loc_dataset.min_x,
+                                   self.rss_loc_dataset.max_y,self.rss_loc_dataset.min_y)
+        print(f"image size is {self.img_size} and meter scale is {self.params.meter_scale}")
+        x_grids = np.arange(min_x, max_x, self.params.meter_scale)
+        y_grids = np.arange(min_y, max_y, self.params.meter_scale)
+
+        grid_test_array = np.array([(x, y) for x,y in product(x_grids, y_grids)]) # reversing order because got swapped
+
+        tx_count = len(self.rss_loc_dataset.data[None].tx_vecs)
+
+        for index in range(tx_count): # go through each tx and set of rxes
+            txes = np.array(
+                [self.rss_loc_dataset.data[None].tx_vecs[index]] * len(self.rss_loc_dataset.data[None].rx_vecs[index][:, 1:3]),
+                dtype=float)[:, 0]
+            rxes = self.rss_loc_dataset.data[None].rx_vecs[index][:,1:3]
+            rxrss = self.rss_loc_dataset.data[None].rx_vecs[index][:,0] # normalized rss value
+
+            rx_dist_est = np.log10(np.array(rxrss)) + self.log_PL # distance based on rss via model, assumes tx pwr = 0
+
+            # test the distance error for each "pixel" over the area to produce an estimate
+
+            sum_of_dists_list = []
+            for coords in grid_test_array:
+                tx_loc = np.array([coords]*len(rxes)) # expand a single grid location to quickly test against all rxes
+                res = calc_distances(tx_loc,rxes) # distances between coords and each point in the test grid
+                sum_of_dists_list.append(np.sum(res))
+                # min_dist = np.min(res) # find the smallest distance
+                # min_dist_index = np.argmin(res)
+                # print(f"sum of distances for {coords} {np.sum(res)}")
+                # print(f"min distance: {min_dist} at index {min_dist_index}")
+            res_array = np.array(sum_of_dists_list)
+            min_dist = np.min(res_array) # the pixel whose sum of distances to RXes is minimum
+            min_dist_index = np.argmin(res_array) # the corresponding index to link to the TX
+            print(f"for tx {txes[0]} the min distance est is {min_dist} at location {grid_test_array[min_dist_index]}")
+            print(f"the error is {calc_distances(txes[0],grid_test_array[min_dist_index])}")
+            # code.interact(local=locals())
+            #
+            # for x in x_grids:
+            #     for y in y_grids:
 
 
+
+        # TODO: need to finish this, and will need to optimize otherwise it will take forever
+
+        return error_estimate_list
 
 
 

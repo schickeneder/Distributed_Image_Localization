@@ -11,6 +11,7 @@ from coordinates import HELIUMSD_LATLON
 import os
 import math
 
+
 from attacker import batch_wrapper, get_all_attack_preds_without_grad
 
 # this is intended to be used only for the helium network dataset (data set 9 in dataset.py)
@@ -301,12 +302,13 @@ def main_process(passed_params = {None}):
 
         rldataset.print_dataset_stats()
 
+
         print("about to run model")
 
         if "PATHLOSS" in func_list:
             print("executing PATHLOSS model")
             physloc = PhysLocalization(rldataset)
-            all_results[rx_blacklist[0]] = physloc.rss_loc_dataset.data
+            all_results[rx_blacklist[0]] = physloc.rss_loc_dataset.test_model()
 
         else: # do regular DL Localization models
 
@@ -344,8 +346,8 @@ def main_process(passed_params = {None}):
                     result_row = tmp + [key] + [str(results['err'][key].mean())]  # float->str so it's serializable
                     all_results[rx_blacklist[0]].append(result_row)
 
-        # TODO maybe make this a json.dump string?
-        return all_results # return main()
+    # TODO maybe make this a json.dump string?
+    return all_results # return main()
 
 
 def save_results(dlloc: DLLocalization, rldataset, model_filename, pickle_filename):
