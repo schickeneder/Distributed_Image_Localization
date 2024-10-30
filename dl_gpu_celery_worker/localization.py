@@ -53,17 +53,18 @@ class PhysLocalization():
             pass
         self.device = self.rss_loc_dataset.params.device # for CUDA, may or may not use..
         self.img_size = np.array([self.rss_loc_dataset.img_height(), self.rss_loc_dataset.img_width()])
+        self.linear_PL = 0
+        self.log_PL = 0
         self.calculate_pathloss()
         self.calculate_error()
         self.test_model()
 
     def error_optimizer_function(self,pl_factor, option):
-        error_array = self.calculate_error(option,pl_factor)
+        error_array = self.calculate_error(option)
         return error_array.mean()
 
     def calculate_pathloss(self):
-        # here we don't need separate validation data, so we use _train and _train_val for pathloss param estimation
-        # start with a simple linear path loss, RSS/distance = x, next try logarithmic
+        # here we don't need separate validation data, so all can be used
 
         #distances = calc_distances(self.params.start_points, self.params.end_points)
 
@@ -108,8 +109,9 @@ class PhysLocalization():
         self.rss_dist_ratio = res.mean()
 
         # linear regression
-        self.linear_PL = minimize_scalar(self.error_optimizer_function, bounds=(0, 1000000), method='bounded', args="rss_dist_ratio")
+        self.linear_PL = minimize_scalar(self.error_optimizer_function, bounds=(0, 1000000), method='bounded', args="rss_dist_ratio").fun
 
+        code.interact(local=locals())
 
         # for a log10 pathloss model (like traditional free space path loss)
 
@@ -126,7 +128,7 @@ class PhysLocalization():
         # print(f"min_pl_factor {min_pl_factor} with min error {min_error}")
 
         #logarithmic regression
-        self.log_PL = minimize_scalar(self.error_optimizer_function, bounds=(0, 1000000), method='bounded', args="log10")
+        self.log_PL = minimize_scalar(self.error_optimizer_function, bounds=(0, 1000000), method='bounded', args="log10").fun
 
         # TODO implement a pointwise interpolated regression function; i.e. for each RSS value it looks up distance
         # in a lookup table or interpolates if no data exists for that range; empirically derived look-up table
@@ -183,7 +185,8 @@ class PhysLocalization():
             sum_of_dists_list = []
             for coords in grid_test_array:
                 tx_loc = np.array([coords]*len(rxes)) # expand a single grid location to quickly test against all rxes
-                res = calc_distances(tx_loc,rxes) # distances between coords and each point in the test grid
+                true_dist = calc_distances(tx_loc,rxes) # distances between coords and each point in the test grid
+                res = abs(true_dist - rx_dist_est) # distance difference between true and estimated
                 sum_of_dists_list.append(np.sum(res))
                 # min_dist = np.min(res) # find the smallest distance
                 # min_dist_index = np.argmin(res)
