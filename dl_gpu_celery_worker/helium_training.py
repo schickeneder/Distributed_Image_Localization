@@ -308,7 +308,8 @@ def main_process(passed_params = {None}):
         if "PATHLOSS" in func_list:
             print("executing PATHLOSS model")
             physloc = PhysLocalization(rldataset)
-            all_results[rx_blacklist[0]] = physloc.rss_loc_dataset.test_model()
+            all_results[rx_blacklist[0]] = {"log10": physloc.test_model(option="log10"),
+                                            "rss_dist_ratio" : physloc.test_model(option="rss_dist_ratio"),}
 
         else: # do regular DL Localization models
 
