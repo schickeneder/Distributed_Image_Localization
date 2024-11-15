@@ -63,6 +63,7 @@ class PhysLocalization():
         self.calculate_pathloss()
         self.calculate_per_node_pathloss()
         self.calculate_error()
+
         # self.test_model()
 
     def error_optimizer_function(self, pl_factor, option):
@@ -164,8 +165,11 @@ class PhysLocalization():
                                           args="log10").fun
             node_PL_list.append(self.log_PL)
 
-            self.per_node_dist_rss_array.append(self.combined_array) # [[[dist,rss],[]..],[[dist,rss],[]]..]
+            self.per_node_dist_rss_array.append(self.dist_rss_array) # [[[dist,rss],[]..],[[dist,rss],[]]..]
         self.dist_rss_array = tmp_dist_rss_array # setting dist_rss_array back to the full list of [[dist,rss],[],..]
+        print(f"per_node_dist_rss_array {self.per_node_dist_rss_array}")
+        print(f"log_PL {self.log_PL}")
+        print(f"node PL list {node_PL_list}")
 
 
 
