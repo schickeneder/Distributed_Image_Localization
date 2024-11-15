@@ -308,12 +308,13 @@ def main_process(passed_params = {None}):
         if "PATHLOSS" in func_list:
             print("executing PATHLOSS model")
             physloc = PhysLocalization(rldataset)
-            all_results[rx_blacklist[0]] = {"log10": physloc.test_model(option="log10"),
-                                            "rss_dist_ratio" : physloc.test_model(option="rss_dist_ratio"),}
+            all_results[rx_blacklist[0]] = {"log10": physloc.test_model(option="log10")}
+            # as expected log10 model is way better, don't bother with linear
+                                            #,"rss_dist_ratio" : physloc.test_model(option="rss_dist_ratio"),}
+            return all_results
 
         else: # do regular DL Localization models
 
-            # here is where we would want to select physics-based vs DLL model; TODO: create new Localization class
             dlloc = DLLocalization(rldataset, loss_object=loss_func)
 
             if should_train:
