@@ -11,6 +11,8 @@ from dataset import RSSLocDataset
 
 from scipy.stats import spearmanr
 from scipy.optimize import minimize_scalar
+from scipy.optimize import minimize
+from scipy.optimize import Bounds
 import re
 import code
 from itertools import product
@@ -59,16 +61,20 @@ class PhysLocalization():
         self.rss_dist_ratio = None
         self.linear_PL = None
         self.log_PL = None
+        self.PL_exp = None
 
         self.calculate_pathloss()
-        self.calculate_per_node_pathloss()
+        tmp = self.PL_exp
+        self.calculate_per_node_pathloss() # have to be careful because this overwrites global PL_exp
+        self.PL_exp = tmp # temporary workaround for per_node_pathloss overwriting
         self.calculate_error()
 
-        # self.test_model()
+        #self.test_model()
 
     def error_optimizer_function(self, pl_factor, option):
         error_array = self.calculate_error(pl_factor, option)
         return error_array.mean()
+
 
     def calculate_pathloss(self):
         # Calculates self.log_PL and self.linear_PL as global pathloss values for use in estimations
@@ -117,7 +123,14 @@ class PhysLocalization():
         # code.interact(local=locals())
 
         #logarithmic regression
-        self.log_PL = minimize_scalar(self.error_optimizer_function, bounds=(0, 1000000), method='bounded', args="log10").fun
+        res = minimize_scalar(self.error_optimizer_function, bounds=(0, 1000000), method='bounded', args="log10")
+        print(f"result of PL_exp min {res}")
+        self.PL_exp = res.x
+        print(f"PL_exp is {self.PL_exp}")
+        print(f"test result from error_optimizer_function {self.error_optimizer_function(self.PL_exp,"log10")}")
+
+
+
 
         # TODO implement a pointwise interpolated regression function; i.e. for each RSS value it looks up distance
         # in a lookup table or interpolates if no data exists for that range; empirically derived look-up table
@@ -161,16 +174,18 @@ class PhysLocalization():
                 tmp_dist_rss_array.append([float(dist_tmp), float(rss_tmp)])
 
             # logarithmic regression - we won't bother with linear
-            self.log_PL = minimize_scalar(self.error_optimizer_function, bounds=(0, 1000000), method='bounded',
-                                          args="log10").fun
-            node_PL_list.append(self.log_PL)
+            res = minimize_scalar(self.error_optimizer_function, bounds=(0, 1000000), method='bounded', args="log10")
+            self.PL_exp = res.x
+
+            node_PL_list.append(self.PL_exp)
 
             self.per_node_dist_rss_array.append(self.dist_rss_array) # [[[dist,rss],[]..],[[dist,rss],[]]..]
         self.dist_rss_array = tmp_dist_rss_array # setting dist_rss_array back to the full list of [[dist,rss],[],..]
         print(f"per_node_dist_rss_array {self.per_node_dist_rss_array}")
-        print(f"log_PL {self.log_PL}")
+        print(f"PL_exp {self.PL_exp}")
         print(f"node PL list {node_PL_list}")
 
+        #TODO calculate error across a map for the per node pathloss value
 
 
 
@@ -186,9 +201,10 @@ class PhysLocalization():
                 pl_factor = self.rss_dist_ratio
             dist_array_est = np.array(self.dist_rss_array)[:, 1] * self.rss_dist_ratio + pl_factor
         elif option == "log10":
+            # try distance = 10^((P_t - RSS) - C))/(10n)
             if not pl_factor:
-                pl_factor = self.log_PL
-            dist_array_est = np.log10(np.array(self.dist_rss_array)[:, 1]) + pl_factor
+                pl_factor = self.PL_exp
+            dist_array_est = 10 ** (( np.array(self.dist_rss_array)[:, 1]) / (10 * pl_factor))
 
         else:
             return None
@@ -200,10 +216,9 @@ class PhysLocalization():
 
         return error_array
 
+
+
     # tests pathloss model against receivers
-    # TODO: Need to fix to actually use pathloss instead of true distance.., right now it is only calculating the
-    # centroid and sometimes gets "lucky"
-    # instead need to minimize the |distance - estimated distance via pathloss model| from selected pixel to each RXer
     def test_model(self, option="log10"):
         estimate_error_list = []
         max_x, min_x, max_y, min_y = (self.rss_loc_dataset.max_x, self.rss_loc_dataset.min_x,
@@ -226,9 +241,10 @@ class PhysLocalization():
 
             if option == "rss_dist_ratio":
                 rx_dist_est = np.array(rxrss) * self.rss_dist_ratio + self.linear_PL
-            else:  # default, log10
-                rx_dist_est = np.log10(
-                    np.array(rxrss)) + self.log_PL  # distance based on rss via model, assumes tx pwr = 0
+            else:  # default
+                rx_dist_est = 10 ** (( np.array(rxrss)) / (10 * self.PL_exp))
+                        #10 ** ( np.array(rxrss) / (10 * self.PL_exp)))
+                        #np.log10(np.array(rxrss)) + self.PL_exp)  # distance based on rss via model, assumes tx pwr = 0
 
             # test the distance error for each "pixel" over the area to produce an estimate
 
