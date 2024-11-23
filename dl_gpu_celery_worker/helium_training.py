@@ -308,7 +308,8 @@ def main_process(passed_params = {None}):
         if "PATHLOSS" in func_list:
             print("executing PATHLOSS model")
             physloc = PhysLocalization(rldataset)
-            all_results[rx_blacklist[0]] = {"log10": physloc.test_model(option="log10")}
+            all_results[rx_blacklist[0]] = {"log10": physloc.test_model(option="log10"),
+                                            "log10_per_node": physloc.test_model_per_node_PL(option="log10")}
             # as expected log10 model is way better, don't bother with linear
                                             #,"rss_dist_ratio" : physloc.test_model(option="rss_dist_ratio"),}
             return all_results
