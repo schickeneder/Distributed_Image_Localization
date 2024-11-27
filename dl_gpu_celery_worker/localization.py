@@ -169,8 +169,8 @@ class PhysLocalization():
             rss_tmps = np.array(self.rss_loc_dataset.data[None].rx_vecs[index][:, 0:1], dtype=float)
             # should also store distance vectors so we can determine relative angle between tx-rx
             # it may be that error is more directional
-            x_tmps = np.array(txes[:0]-rxes[:0], dtype=float)
-            y_tmps = np.array(txes[:1]-rxes[:1], dtype=float)
+            x_tmps = np.array(txes[:,0]-rxes[:,0], dtype=float)
+            y_tmps = np.array(txes[:,1]-rxes[:,1], dtype=float)
             dist_tmps = np.array(calc_distances(txes, rxes))
 
             self.dist_rss_array = []
@@ -213,7 +213,6 @@ class PhysLocalization():
             # try distance = 10^((P_t - RSS) - C))/(10n)
             if not pl_factor:
                 pl_factor = self.PL_exp
-            print(self.dist_rss_array) # TODO for some reason dist_rss_array can be []??
             dist_array_est = 10 ** (( np.array(self.dist_rss_array)[:, 1]) / (10 * pl_factor))
 
         else:
