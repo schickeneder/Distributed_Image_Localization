@@ -167,12 +167,16 @@ class PhysLocalization():
             rxes = self.rss_loc_dataset.data[None].rx_vecs[index][:, 1:3]
 
             rss_tmps = np.array(self.rss_loc_dataset.data[None].rx_vecs[index][:, 0:1], dtype=float)
+            # should also store distance vectors so we can determine relative angle between tx-rx
+            # it may be that error is more directional
+            x_tmps = np.array(txes[:0]-rxes[:0], dtype=float)
+            y_tmps = np.array(txes[:1]-rxes[:1], dtype=float)
             dist_tmps = np.array(calc_distances(txes, rxes))
 
             self.dist_rss_array = []
-            for dist_tmp, rss_tmp in zip(dist_tmps, rss_tmps):
-                self.dist_rss_array.append([float(dist_tmp), float(rss_tmp)])
-                tmp_dist_rss_array.append([float(dist_tmp), float(rss_tmp)])
+            for dist_tmp, rss_tmp, x_tmp, y_tmp in zip(dist_tmps, rss_tmps, x_tmps, y_tmps):
+                self.dist_rss_array.append([float(dist_tmp), float(rss_tmp), float(x_tmp), float(y_tmp)])
+                tmp_dist_rss_array.append([float(dist_tmp), float(rss_tmp), float(x_tmp), float(y_tmp)])
 
             # logarithmic regression - we won't bother with linear
             res = minimize_scalar(self.error_optimizer_function, bounds=(-10000, 10000), method='bounded', args="log10")
@@ -180,7 +184,7 @@ class PhysLocalization():
 
             self.per_node_PL_array.append(self.PL_exp)
 
-            self.per_node_dist_rss_array.append(self.dist_rss_array) # [[[dist,rss],[]..],[[dist,rss],[]]..]
+            self.per_node_dist_rss_array.append(self.dist_rss_array) # [[[dist,rss,x,y],[]..],[[dist,rss,x,y],[]]..]
 
 
 
@@ -209,6 +213,7 @@ class PhysLocalization():
             # try distance = 10^((P_t - RSS) - C))/(10n)
             if not pl_factor:
                 pl_factor = self.PL_exp
+            print(self.dist_rss_array) # TODO for some reason dist_rss_array can be []??
             dist_array_est = 10 ** (( np.array(self.dist_rss_array)[:, 1]) / (10 * pl_factor))
 
         else:
@@ -225,17 +230,25 @@ class PhysLocalization():
         tx_count = len(self.per_node_PL_array)
         per_node_error_array = [] # each node uses its own PL_exp
         regular_error_array = [] # each node uses the same global PL_exp
+        per_node_error_vector_array = [] # net error vector array for each TX with per node PL
+        regular_error_vector_array = [] # net error vector array for each TX with global PL
         print(f"dist_rss_array {np.array(self.dist_rss_array)[:, 1]}")
         print(f"per_node_PL_array {self.per_node_PL_array[0]}")
         print(f"per_node_dist_rss_array {np.array(self.per_node_dist_rss_array[0])}")
 
         for index in range(tx_count):
+            tmp_error_vector_array = []
             dist_array_error = 10 ** ((np.array(self.per_node_dist_rss_array[index])[:, 1]) / (10 * np.array(self.per_node_PL_array[index]))) - np.array(
                 self.per_node_dist_rss_array[index])[:, 0]
+            vector_array_error = np.column_stack((dist_array_error/np.array(self.per_node_dist_rss_array[index])[:, 2],
+                                                  dist_array_error/np.array(self.per_node_dist_rss_array[index])[:, 3]))
+            print(f"vector array {vector_array_error}")
             per_node_error_array.append(np.mean(dist_array_error))
             dist_array_error = 10 ** ((np.array(self.per_node_dist_rss_array[index])[:, 1]) / (10 * self.PL_exp)) - np.array(
                 self.per_node_dist_rss_array[index])[:, 0]
             regular_error_array.append(np.mean(dist_array_error))
+            # but we also want to calculate the net error vector for each tx
+            # derive unit vector from x, y of dist_rss_array [dist, rss, x, y] as x/dist y/dist
 
         print(f"per_node_PL_exp error {per_node_error_array}")
         print(f"regular_PL_exp error {regular_error_array}")
