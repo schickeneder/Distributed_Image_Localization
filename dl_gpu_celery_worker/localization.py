@@ -41,6 +41,9 @@ def calc_distances(txes, rxes):
     return None
 
 
+
+
+
 class PhysLocalization():
     # runs physics-based MSE pathloss model(s)
     def __init__(
@@ -59,6 +62,8 @@ class PhysLocalization():
         self.per_node_dist_rss_array = [] # [[[dist,rss],[]..],[[dist,rss],[]]..]
         self.per_node_PL_array = [] # calculated PL across all tx-rx pairs for each TXing node
         self.dist_rss_array = []  # [[distance,rss]..]
+        self.per_node_error_vector_array = []
+        self.regular_error_vector_array = []
         self.rss_dist_ratio = None
         self.linear_PL = None
         self.log_PL = None
@@ -68,7 +73,7 @@ class PhysLocalization():
         tmp = self.PL_exp
         self.calculate_per_node_pathloss() # have to be careful because this overwrites global PL_exp
         self.PL_exp = tmp # temporary workaround for per_node_pathloss overwriting
-        self.calculate_per_node_error()
+        self.calculate_per_node_error() # this calculates error vector arrays which will be needed by test
         self.calculate_error()
 
         #self.test_model()
@@ -76,6 +81,20 @@ class PhysLocalization():
     def error_optimizer_function(self, pl_factor, option):
         error_array = self.calculate_error(pl_factor, option)
         return error_array.mean()
+
+    def add_vector_error_array_offset(self,tx_locs, rx_locs, true_dist, rx_dist_est,index):
+        # need to project the magnitude the error vector array onto the true distance vectors
+
+        # get x, y dist components
+        x_tmps = np.array(tx_locs[:, 0] - rx_locs[:, 0], dtype=float)
+        y_tmps = np.array(tx_locs[:, 1] - rx_locs[:, 1], dtype=float)
+
+        dist_vecs = np.column_stack((x_tmps, y_tmps))
+
+        projected_error_magnitudes = np.sum(dist_vecs * np.array(self.per_node_error_vector_array[index]), axis=1) / true_dist
+
+        # returns new rx_dist_est by adjusting based on error_vector_array offset
+        return projected_error_magnitudes
 
 
     def calculate_pathloss(self):
@@ -239,13 +258,56 @@ class PhysLocalization():
             tmp_error_vector_array = []
             dist_array_error = 10 ** ((np.array(self.per_node_dist_rss_array[index])[:, 1]) / (10 * np.array(self.per_node_PL_array[index]))) - np.array(
                 self.per_node_dist_rss_array[index])[:, 0]
-            vector_array_error = np.column_stack((dist_array_error/np.array(self.per_node_dist_rss_array[index])[:, 2],
-                                                  dist_array_error/np.array(self.per_node_dist_rss_array[index])[:, 3]))
-            print(f"vector array {vector_array_error}")
+            # compute unit vector then multiply by error distance. Note: rows are [dist,rss,x,y]
+            unit_vector_dist_array = np.column_stack((np.array(self.per_node_dist_rss_array[index])[:, 2] /
+                                                  np.array(self.per_node_dist_rss_array[index])[:, 0],
+                                                  np.array(self.per_node_dist_rss_array[index])[:, 3] /
+                                                  np.array(self.per_node_dist_rss_array[index])[:, 0]))
+
+            vector_array_error = unit_vector_dist_array * dist_array_error[:, np.newaxis]
+            average_error_vector = np.mean(vector_array_error,axis=0) # average error vector for this index
+            # if we offset
+
+            # calculate distance offset in the direction of these nodes
+            for num in [0, 0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9]:
+                vector_error_factor = num * np.dot(unit_vector_dist_array, average_error_vector)
+
+                dist_array_error2 = (10 ** ((np.array(self.per_node_dist_rss_array[index])[:, 1]) /
+                                           (10 * np.array(self.per_node_PL_array[index])))
+                                     - np.array(self.per_node_dist_rss_array[index])[:, 0]) - vector_error_factor
+                print(f" num {num}, dist_array_error sum = {np.sum(dist_array_error)}, dist_array_error2 sum = {np.sum(dist_array_error2)}")
+                print(f" dist_array_error average = {np.mean(dist_array_error)}, dist_array_error2 average = {np.mean(dist_array_error2)}")
+                print(f" dist_array_error average abs = {np.mean(np.abs(dist_array_error))}, dist_array_error2 average abs = {np.mean(np.abs(dist_array_error2))}")
+
+                # print(f"elementwise difference of above {dist_array_error - dist_array_error2}")
+                print(f"average_error_vector {average_error_vector}")
+
+
+            print("In calculate_per_node_error")
+            code.interact(local=locals())
+
+
+            # TODO: test vector array error here to make sure it actually improves things by offsetting
+            # add or subtract mean vector array error from x-y components
+
+            # print(f"per node sum vector error {np.sum(vector_array_error,axis=0)}")
+            # print(f"per node mean vector error {np.mean(vector_array_error,axis=0)}")
+
             per_node_error_array.append(np.mean(dist_array_error))
+            self.per_node_error_vector_array.append(np.mean(vector_array_error,axis=0))
+
             dist_array_error = 10 ** ((np.array(self.per_node_dist_rss_array[index])[:, 1]) / (10 * self.PL_exp)) - np.array(
                 self.per_node_dist_rss_array[index])[:, 0]
+            vector_array_error = np.column_stack((np.array(self.per_node_dist_rss_array[index])[:, 2] /
+                                                  np.array(self.per_node_dist_rss_array[index])[:, 0] * dist_array_error,
+                                                  np.array(self.per_node_dist_rss_array[index])[:, 3] /
+                                                  np.array(self.per_node_dist_rss_array[index])[:, 0] * dist_array_error))
+
+            # print(f"reg sum vector error {np.sum(vector_array_error,axis=0)}")
+            # print(f"reg mean vector error {np.mean(vector_array_error,axis=0)}")
+
             regular_error_array.append(np.mean(dist_array_error))
+            self.regular_error_vector_array.append(np.mean(vector_array_error,axis=0))
             # but we also want to calculate the net error vector for each tx
             # derive unit vector from x, y of dist_rss_array [dist, rss, x, y] as x/dist y/dist
 
@@ -256,6 +318,12 @@ class PhysLocalization():
         print(f"mean, median, min, max regular error {np.mean(regular_error_array)},"
               f" {np.median(regular_error_array)}, {np.min(regular_error_array)}, {np.max(regular_error_array)}")
 
+        print(f"mean, median, min, max per node vector error {np.mean(self.per_node_error_vector_array,axis=0)},"
+              f" {np.median(self.per_node_error_vector_array,axis=0)}, {np.min(self.per_node_error_vector_array,axis=0)}, "
+              f"{np.max(self.per_node_error_vector_array,axis=0)}")
+        print(f"mean, median, min, max regular vector error {np.mean(self.regular_error_vector_array,axis=0)},"
+              f" {np.median(self.regular_error_vector_array,axis=0)}, {np.min(self.regular_error_vector_array,axis=0)}, "
+              f"{np.max(self.regular_error_vector_array,axis=0)}")
         return
 
     # tests pathloss model against receivers
@@ -280,7 +348,7 @@ class PhysLocalization():
             rxrss = self.rss_loc_dataset.data[None].rx_vecs[index][:, 0]  # normalized rss value
 
             if option == "rss_dist_ratio":
-                rx_dist_est = np.array(rxrss) * self.rss_dist_ratio + self.linear_PL
+                rx_dist_est = np.array(rxrss) * self.rss_dist_ratio + self.linear_PL # probably should remove this opt.
             else:  # default
                 rx_dist_est = 10 ** (( np.array(rxrss)) / (10 * self.PL_exp))
                         #10 ** ( np.array(rxrss) / (10 * self.PL_exp)))
@@ -292,6 +360,7 @@ class PhysLocalization():
             for coords in grid_test_array:
                 tx_loc = np.array([coords]*len(rxes)) # expand a single grid location to quickly test against all rxes
                 true_dist = calc_distances(tx_loc,rxes) # distances between coords and each point in the test grid
+
                 res = abs(true_dist - rx_dist_est) # distance difference between true and estimated
                 sum_of_dists_list.append(np.sum(res))
                 # min_dist = np.min(res) # find the smallest distance
@@ -344,20 +413,41 @@ class PhysLocalization():
             # test the distance error for each "pixel" over the area to produce an estimate
 
             sum_of_dists_list = []
+            sum_of_dists_list_vector_adjusted = []
             for coords in grid_test_array:
                 tx_loc = np.array([coords]*len(rxes)) # expand a single grid location to quickly test against all rxes
+                # TODO instead of calc_distances, how about just using x,y components; would need to have component
+                # rx_dist_est then..
                 true_dist = calc_distances(tx_loc,rxes) # distances between coords and each point in the test grid
+
+                # including projected error offsets
+                projected_error_mags = self.add_vector_error_array_offset(tx_loc, rxes, true_dist,rx_dist_est,index)
+
+
+
+                # print(f"rx_dist_est, projected_error_mags {rx_dist_est[:5],projected_error_mags[:5]}")
+                # rx_dist_est = rx_dist_est + projected_error_mags
+
                 res = abs(true_dist - rx_dist_est) # distance difference between true and estimated
                 sum_of_dists_list.append(np.sum(res))
+
+                res = abs(true_dist - (rx_dist_est + projected_error_mags))
+                sum_of_dists_list_vector_adjusted.append(np.sum(res))
+
+
                 # min_dist = np.min(res) # find the smallest distance
                 # min_dist_index = np.argmin(res)
                 # print(f"sum of distances for {coords} {np.sum(res)}")
                 # print(f"min distance: {min_dist} at index {min_dist_index}")
+
+            print("In test_model_per_node_PL")
+            code.interact(local=locals())
+
             res_array = np.array(sum_of_dists_list)
             min_dist = np.min(res_array)  # the pixel whose sum of distances to RXes is minimum
             min_dist_index = np.argmin(res_array)  # the corresponding index to link to the TX
             # print(f"for tx {txes[0]} the min distance est is {min_dist} at location {grid_test_array[min_dist_index]}")
-            error = calc_distances(txes[0], grid_test_array[min_dist_index])
+            error = calc_distances(txes[0], grid_test_array[min_dist_index]) # txes[0] because they're all the same val
             estimate_error_list.append(error)
             # print(f"the error is {error}")
             # code.interact(local=locals())
