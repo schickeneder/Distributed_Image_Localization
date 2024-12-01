@@ -64,6 +64,7 @@ class PhysLocalization():
         self.dist_rss_array = []  # [[distance,rss]..]
         self.per_node_error_vector_array = []
         self.regular_error_vector_array = []
+        self.vector_error_factor_array = []
         self.rss_dist_ratio = None
         self.linear_PL = None
         self.log_PL = None
@@ -284,16 +285,19 @@ class PhysLocalization():
 
 
             # without vector_error_factor
-            vector_error_factor = np.dot(unit_vector_dist_array, res.x)
 
             dist_array_error0 = (10 ** ((np.array(self.per_node_dist_rss_array[index])[:, 1]) /
                                        (10 * np.array(self.per_node_PL_array[index])))
                                  - np.array(self.per_node_dist_rss_array[index])[:, 0])
 
-            # minimize vector_error_factor
+            # minimize vector_error_factor --- this one seems to perform best
+            vector_error_factor = np.dot(unit_vector_dist_array, res.x)
+
             dist_array_error = (10 ** ((np.array(self.per_node_dist_rss_array[index])[:, 1]) /
                                        (10 * np.array(self.per_node_PL_array[index])))
                                  - np.array(self.per_node_dist_rss_array[index])[:, 0]) - vector_error_factor
+
+            self.vector_error_factor_array.append(vector_error_factor)
 
             # calculate distance offset in the direction of these nodes
 
@@ -310,13 +314,13 @@ class PhysLocalization():
 
             # print(f"average_error_vector {average_error_vector}")
 
-            print(f"average_error_vector {average_error_vector} and minimized vector_factor {res.x}")
-            print(f" avg abs without factor, optim, analy = {np.mean(np.abs(dist_array_error0 )):0f} {np.mean(np.abs(dist_array_error)):0f} {np.mean(np.abs(dist_array_error2)):0f}")
+            # print(f"average_error_vector {average_error_vector} and minimized vector_factor {res.x}")
+            # print(f" avg abs without factor, optim, analy = {np.mean(np.abs(dist_array_error0 )):0f} {np.mean(np.abs(dist_array_error)):0f} {np.mean(np.abs(dist_array_error2)):0f}")
 
-            continue
-
-            print("In calculate_per_node_error")
-            code.interact(local=locals())
+            # continue
+            #
+            # print("In calculate_per_node_error")
+            # code.interact(local=locals())
 
 
             # add or subtract mean vector array error from x-y components
@@ -342,19 +346,19 @@ class PhysLocalization():
             # but we also want to calculate the net error vector for each tx
             # derive unit vector from x, y of dist_rss_array [dist, rss, x, y] as x/dist y/dist
 
-        print(f"per_node_PL_exp error {per_node_error_array}")
-        print(f"regular_PL_exp error {regular_error_array}")
-        print(f"mean, median, min, max per node error {np.mean(per_node_error_array)},"
-              f" {np.median(per_node_error_array)}, {np.min(per_node_error_array)}, {np.max(per_node_error_array)}")
-        print(f"mean, median, min, max regular error {np.mean(regular_error_array)},"
-              f" {np.median(regular_error_array)}, {np.min(regular_error_array)}, {np.max(regular_error_array)}")
-
-        print(f"mean, median, min, max per node vector error {np.mean(self.per_node_error_vector_array,axis=0)},"
-              f" {np.median(self.per_node_error_vector_array,axis=0)}, {np.min(self.per_node_error_vector_array,axis=0)}, "
-              f"{np.max(self.per_node_error_vector_array,axis=0)}")
-        print(f"mean, median, min, max regular vector error {np.mean(self.regular_error_vector_array,axis=0)},"
-              f" {np.median(self.regular_error_vector_array,axis=0)}, {np.min(self.regular_error_vector_array,axis=0)}, "
-              f"{np.max(self.regular_error_vector_array,axis=0)}")
+        # print(f"per_node_PL_exp error {per_node_error_array}")
+        # print(f"regular_PL_exp error {regular_error_array}")
+        # print(f"mean, median, min, max per node error {np.mean(per_node_error_array)},"
+        #       f" {np.median(per_node_error_array)}, {np.min(per_node_error_array)}, {np.max(per_node_error_array)}")
+        # print(f"mean, median, min, max regular error {np.mean(regular_error_array)},"
+        #       f" {np.median(regular_error_array)}, {np.min(regular_error_array)}, {np.max(regular_error_array)}")
+        #
+        # print(f"mean, median, min, max per node vector error {np.mean(self.per_node_error_vector_array,axis=0)},"
+        #       f" {np.median(self.per_node_error_vector_array,axis=0)}, {np.min(self.per_node_error_vector_array,axis=0)}, "
+        #       f"{np.max(self.per_node_error_vector_array,axis=0)}")
+        # print(f"mean, median, min, max regular vector error {np.mean(self.regular_error_vector_array,axis=0)},"
+        #       f" {np.median(self.regular_error_vector_array,axis=0)}, {np.min(self.regular_error_vector_array,axis=0)}, "
+        #       f"{np.max(self.regular_error_vector_array,axis=0)}")
         return
 
     # tests pathloss model against receivers
@@ -438,7 +442,8 @@ class PhysLocalization():
             if option == "rss_dist_ratio":
                 rx_dist_est = np.array(rxrss) * self.rss_dist_ratio + self.linear_PL
             else:  # default
-                rx_dist_est = 10 ** (( np.array(rxrss)) / (10 * self.per_node_PL_array[index]))
+                rx_dist_est = (10 ** (( np.array(rxrss)) / (10 * self.per_node_PL_array[index]))
+                               - self.vector_error_factor_array[index])
 
 
             # test the distance error for each "pixel" over the area to produce an estimate
@@ -471,8 +476,8 @@ class PhysLocalization():
                 # print(f"sum of distances for {coords} {np.sum(res)}")
                 # print(f"min distance: {min_dist} at index {min_dist_index}")
 
-            print("In test_model_per_node_PL")
-            code.interact(local=locals())
+            # print("In test_model_per_node_PL")
+            # code.interact(local=locals())
 
             res_array = np.array(sum_of_dists_list)
             min_dist = np.min(res_array)  # the pixel whose sum of distances to RXes is minimum
