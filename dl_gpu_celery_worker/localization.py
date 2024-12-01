@@ -244,6 +244,17 @@ class PhysLocalization():
 
         return error_array
 
+    def error_vector_optimization_function(self, average_error_vector, unit_vector_dist_array,index):
+        vector_error_factor = np.dot(unit_vector_dist_array, average_error_vector)
+
+        dist_array_error = (10 ** ((np.array(self.per_node_dist_rss_array[index])[:, 1]) /
+                                    (10 * np.array(self.per_node_PL_array[index])))
+                             - np.array(self.per_node_dist_rss_array[index])[:, 0]) - vector_error_factor
+
+        return np.mean(np.abs(dist_array_error))
+
+
+
     def calculate_per_node_error(self):
         tx_count = len(self.per_node_PL_array)
         per_node_error_array = [] # each node uses its own PL_exp
@@ -268,26 +279,46 @@ class PhysLocalization():
             average_error_vector = np.mean(vector_array_error,axis=0) # average error vector for this index
             # if we offset
 
+            res = minimize(self.error_vector_optimization_function, [100,100], args=(unit_vector_dist_array,index),method='trust-constr')
+            # print(res)
+
+
+            # without vector_error_factor
+            vector_error_factor = np.dot(unit_vector_dist_array, res.x)
+
+            dist_array_error0 = (10 ** ((np.array(self.per_node_dist_rss_array[index])[:, 1]) /
+                                       (10 * np.array(self.per_node_PL_array[index])))
+                                 - np.array(self.per_node_dist_rss_array[index])[:, 0])
+
+            # minimize vector_error_factor
+            dist_array_error = (10 ** ((np.array(self.per_node_dist_rss_array[index])[:, 1]) /
+                                       (10 * np.array(self.per_node_PL_array[index])))
+                                 - np.array(self.per_node_dist_rss_array[index])[:, 0]) - vector_error_factor
+
             # calculate distance offset in the direction of these nodes
-            for num in [0, 0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9]:
-                vector_error_factor = num * np.dot(unit_vector_dist_array, average_error_vector)
 
-                dist_array_error2 = (10 ** ((np.array(self.per_node_dist_rss_array[index])[:, 1]) /
-                                           (10 * np.array(self.per_node_PL_array[index])))
-                                     - np.array(self.per_node_dist_rss_array[index])[:, 0]) - vector_error_factor
-                print(f" num {num}, dist_array_error sum = {np.sum(dist_array_error)}, dist_array_error2 sum = {np.sum(dist_array_error2)}")
-                print(f" dist_array_error average = {np.mean(dist_array_error)}, dist_array_error2 average = {np.mean(dist_array_error2)}")
-                print(f" dist_array_error average abs = {np.mean(np.abs(dist_array_error))}, dist_array_error2 average abs = {np.mean(np.abs(dist_array_error2))}")
+            # analytically computed vector_error_factor
+            vector_error_factor = np.dot(unit_vector_dist_array, average_error_vector)
 
-                # print(f"elementwise difference of above {dist_array_error - dist_array_error2}")
-                print(f"average_error_vector {average_error_vector}")
 
+            dist_array_error2 = (10 ** ((np.array(self.per_node_dist_rss_array[index])[:, 1]) /
+                                       (10 * np.array(self.per_node_PL_array[index])))
+                                 - np.array(self.per_node_dist_rss_array[index])[:, 0]) - vector_error_factor
+            # print(f" dist_array_error sum = {np.sum(dist_array_error)}, dist_array_error2 sum = {np.sum(dist_array_error2)}")
+            # print(f" dist_array_error average = {np.mean(dist_array_error)}, dist_array_error2 average = {np.mean(dist_array_error2)}")
+            # print(f" dist_array_error average abs = {np.mean(np.abs(dist_array_error))}, dist_array_error2 average abs = {np.mean(np.abs(dist_array_error2))}")
+
+            # print(f"average_error_vector {average_error_vector}")
+
+            print(f"average_error_vector {average_error_vector} and minimized vector_factor {res.x}")
+            print(f" avg abs without factor, optim, analy = {np.mean(np.abs(dist_array_error0 )):0f} {np.mean(np.abs(dist_array_error)):0f} {np.mean(np.abs(dist_array_error2)):0f}")
+
+            continue
 
             print("In calculate_per_node_error")
             code.interact(local=locals())
 
 
-            # TODO: test vector array error here to make sure it actually improves things by offsetting
             # add or subtract mean vector array error from x-y components
 
             # print(f"per node sum vector error {np.sum(vector_array_error,axis=0)}")
