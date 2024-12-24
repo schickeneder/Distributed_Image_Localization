@@ -42,6 +42,36 @@ def plot_and_save_samples_vs_error(merged_file = 'cities_error_and_counts.csv'):
     print(f"cities count: {len(x)}")
     print(f"Mean samples_count {np.mean(y)} and error {np.mean(x)} ")
 
+def plot_and_save_samples_vs_error2(merged_file = 'cities_error_and_counts.csv'):#'20240912_deny_list_merged_output.csv' ):
+    # Read data from CSV file
+    #data = pd.read_csv('deny_list_merged_output.csv')
+    data = pd.read_csv(merged_file,encoding="ISO-8859-1")
+
+    # Extracting the first column as y values and the second column as x values
+    y = data.iloc[:, 3] # samples_count
+    x = data.iloc[:, 2] # error
+
+    plt.scatter(x, y, c='blue', alpha=0.2, edgecolors='black')
+
+    # Add titles and labels
+    plt.title(f'Mean Error vs Sample Quantity')
+    plt.ylabel('Number of Samples')
+    plt.xlabel('Mean Error (m)')
+
+
+    filename = f"samples_vs_error_plot_{len(x)}cities_denylist.png"
+    plt.savefig(filename, dpi=300)
+    # Show plot
+    plt.show()
+
+    # Calculate Pearson correlation coefficient and p-value
+    correlation_coefficient, p_value = pearsonr(x, y)
+
+    print(f'Pearson correlation coefficient: {correlation_coefficient}')
+    print(f'P-value: {p_value}')
+    print(f"cities count: {len(x)}")
+    print(f"Mean samples_count {np.mean(y)} and error {np.mean(x)} ")
+
 def plot_denylist_and_error():
     # plots the error difference between normal->denylist against the ratio of denylist nodes to normal nodes
 

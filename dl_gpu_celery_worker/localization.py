@@ -210,7 +210,7 @@ class PhysLocalization():
 
 
         self.dist_rss_array = tmp_dist_rss_array # setting dist_rss_array back to the full list of [[dist,rss],[],..]
-        print(f"error per node for per_node PL_exp is {error_array}")
+        # print(f"error per node for per_node PL_exp is {error_array}")
         # print(f"per_node_dist_rss_array {self.per_node_dist_rss_array}")
         # print(f"PL_exp {self.PL_exp}")
         # print(f"per node PL array {self.per_node_PL_array}")
@@ -260,11 +260,10 @@ class PhysLocalization():
         tx_count = len(self.per_node_PL_array)
         per_node_error_array = [] # each node uses its own PL_exp
         regular_error_array = [] # each node uses the same global PL_exp
-        per_node_error_vector_array = [] # net error vector array for each TX with per node PL
-        regular_error_vector_array = [] # net error vector array for each TX with global PL
-        print(f"dist_rss_array {np.array(self.dist_rss_array)[:, 1]}")
-        print(f"per_node_PL_array {self.per_node_PL_array[0]}")
-        print(f"per_node_dist_rss_array {np.array(self.per_node_dist_rss_array[0])}")
+
+        # print(f"dist_rss_array {np.array(self.dist_rss_array)[:, 1]}")
+        # print(f"per_node_PL_array {self.per_node_PL_array[0]}")
+        # print(f"per_node_dist_rss_array {np.array(self.per_node_dist_rss_array[0])}")
 
         for index in range(tx_count):
             tmp_error_vector_array = []
@@ -421,6 +420,7 @@ class PhysLocalization():
     # tests pathloss model against receivers
     def test_model_per_node_PL(self, option="log10"):
         estimate_error_list = []
+        RMS_error_factor_array = []
         max_x, min_x, max_y, min_y = (self.rss_loc_dataset.max_x, self.rss_loc_dataset.min_x,
                                       self.rss_loc_dataset.max_y, self.rss_loc_dataset.min_y)
         # print(f"image size is {self.img_size} and meter scale is {self.params.meter_scale}")
@@ -432,6 +432,8 @@ class PhysLocalization():
         tx_count = len(self.rss_loc_dataset.data[None].tx_vecs)
 
         for index in range(tx_count):  # go through each tx and set of rxes
+            RMS_error_factor_array.append(np.sqrt(np.mean(np.square(np.array(self.vector_error_factor_array[index])))))
+
             txes = np.array(
                 [self.rss_loc_dataset.data[None].tx_vecs[index]] * len(
                     self.rss_loc_dataset.data[None].rx_vecs[index][:, 1:3]),
@@ -444,7 +446,6 @@ class PhysLocalization():
             else:  # default
                 rx_dist_est = (10 ** (( np.array(rxrss)) / (10 * self.per_node_PL_array[index]))
                                - self.vector_error_factor_array[index])
-
 
             # test the distance error for each "pixel" over the area to produce an estimate
 
@@ -492,8 +493,8 @@ class PhysLocalization():
             #     for y in y_grids:
 
         # TODO: need to finish this, and will need to optimize otherwise it will take forever
-
-        return np.array(estimate_error_list).mean()
+        # returns average of RMS of applied error factor offsets and the average estimation error for that area
+        return np.array(RMS_error_factor_array).mean(),np.array(estimate_error_list).mean()
 
 
 class DLLocalization():
