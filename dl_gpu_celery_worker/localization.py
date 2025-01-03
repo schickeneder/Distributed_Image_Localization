@@ -79,7 +79,8 @@ class PhysLocalization():
 
         #self.test_model()
 
-    def error_optimizer_function(self, pl_factor, option):
+    def pathloss_error_optimizer_function(self, pl_factor, option):
+        # helper function for finding the optimal pathloss exponent (factor)
         error_array = self.calculate_error(pl_factor, option)
         return error_array.mean()
 
@@ -140,16 +141,16 @@ class PhysLocalization():
         self.rss_dist_ratio = res.mean()
 
         # linear regression
-        self.linear_PL = minimize_scalar(self.error_optimizer_function, bounds=(0, 1000000), method='bounded', args="rss_dist_ratio").fun
+        # self.linear_PL = minimize_scalar(self.pathloss_error_optimizer_function, bounds=(0, 1000000), method='bounded', args="rss_dist_ratio").fun
 
         # code.interact(local=locals())
 
         #logarithmic regression
-        res = minimize_scalar(self.error_optimizer_function, bounds=(-10000, 10000), method='bounded', args="log10")
+        res = minimize_scalar(self.pathloss_error_optimizer_function, bounds=(-10000, 10000), method='bounded', args="MMSE")
         print(f"result of PL_exp min {res}")
         self.PL_exp = res.x
         print(f"PL_exp is {self.PL_exp}")
-        print(f"test result from error_optimizer_function {self.error_optimizer_function(self.PL_exp,"log10")}")
+        print(f"test result from error_optimizer_function {self.pathloss_error_optimizer_function(self.PL_exp, "MMSE")}")
 
 
 
@@ -199,7 +200,7 @@ class PhysLocalization():
                 tmp_dist_rss_array.append([float(dist_tmp), float(rss_tmp), float(x_tmp), float(y_tmp)])
 
             # logarithmic regression - we won't bother with linear
-            res = minimize_scalar(self.error_optimizer_function, bounds=(-10000, 10000), method='bounded', args="log10")
+            res = minimize_scalar(self.pathloss_error_optimizer_function, bounds=(-10000, 10000), method='bounded', args="MMSE")
             self.PL_exp = res.x
 
             self.per_node_PL_array.append(self.PL_exp)
@@ -222,26 +223,23 @@ class PhysLocalization():
 
 
 
-    # calculates error in pathloss models against the input training data
-    def calculate_error(self, pl_factor=None, option="rss_dist_ratio"):
 
-        if option == "rss_dist_ratio":
-            if not pl_factor:
-                pl_factor = self.rss_dist_ratio
-            dist_array_est = np.array(self.dist_rss_array)[:, 1] * self.rss_dist_ratio + pl_factor
-        elif option == "log10":
-            # try distance = 10^((P_t - RSS) - C))/(10n)
-            if not pl_factor:
-                pl_factor = self.PL_exp
-            dist_array_est = 10 ** (( np.array(self.dist_rss_array)[:, 1]) / (10 * pl_factor))
+    def calculate_error(self, pl_factor=None, option="MMSE"):
+    # calculates error due to pathloss factor estimate, used in optimization function and initialization
+        if not pl_factor:
+            pl_factor = self.PL_exp
+        dist_array_est = 10 ** ((np.array(self.dist_rss_array)[:, 1]) / (10 * pl_factor))
+
+        if option == "MMAE":
+            error_array = np.abs(np.array(self.dist_rss_array)[:, 0] - dist_array_est)
+
+        elif option == "MMSE":
+            error_array = (np.array(self.dist_rss_array)[:, 0] - dist_array_est) ** 2
 
         else:
             return None
 
-        error_array = np.abs(np.array(self.dist_rss_array)[:, 0] - dist_array_est)
         error_array = error_array[np.isfinite(error_array)]  # get rid of any inf or NaN values
-        # print(error_array)
-        # print(error_array.mean())
 
         return error_array
 
@@ -495,6 +493,44 @@ class PhysLocalization():
         # TODO: need to finish this, and will need to optimize otherwise it will take forever
         # returns average of RMS of applied error factor offsets and the average estimation error for that area
         return np.array(RMS_error_factor_array).mean(),np.array(estimate_error_list).mean()
+
+    def get_data_distribution_stats(self):
+        witness_events_count_list = []
+        max_x, min_x, max_y, min_y = (self.rss_loc_dataset.max_x, self.rss_loc_dataset.min_x,
+                                      self.rss_loc_dataset.max_y, self.rss_loc_dataset.min_y)
+        # print(f"image size is {self.img_size} and meter scale is {self.params.meter_scale}")
+        x_grids = np.arange(min_x, max_x, self.params.meter_scale)
+        y_grids = np.arange(min_y, max_y, self.params.meter_scale)
+
+        grid_test_array = np.array([(x, y) for x,y in product(x_grids, y_grids)]) # reversing order because got swapped
+
+        grid_counts = np.zeros((len(x_grids), len(y_grids)), dtype=int)
+
+        tx_count = len(self.rss_loc_dataset.data[None].tx_vecs)
+
+        for index in range(tx_count):  # go through each tx and set of rxes
+            num_witness_events = len(self.rss_loc_dataset.data[None].rx_vecs[index])
+            witness_events_count_list.append(num_witness_events)
+
+        for val in self.rss_loc_dataset.data[None].tx_vecs:
+            x,y = val[0]
+            x_index = np.searchsorted(x_grids, x, side='right') - 1
+            y_index = np.searchsorted(y_grids, y, side='right') - 1
+            if 0 <= x_index < len(x_grids) and 0 <= y_index < len(y_grids):
+                grid_counts[x_index, y_index] += 1
+
+        # print(f"witness events: {witness_events_count_list}")
+        # print(f"grid counts: {grid_counts}")
+
+
+        flat_counts = grid_counts.flatten()
+        hist, bin_edges = np.histogram(flat_counts, bins=np.arange(flat_counts.max() + 2))
+
+        # returns witness events count list and histogram for grid counts
+        print(witness_events_count_list, hist, bin_edges)
+        return witness_events_count_list, hist, bin_edges
+
+
 
 
 class DLLocalization():
