@@ -15,6 +15,28 @@
 
         }
 
+      .custom-blue-pin .pin-head {
+        width: 12px;
+        height: 12px;
+        background-color: white;
+        border: 2px solid blue;
+        border-radius: 50%;
+        position: absolute;
+        top: -20px;
+        left: -6px;
+      }
+
+      .custom-red-pin .pin-head {
+        width: 12px;
+        height: 12px;
+        background-color: white;
+        border: 2px solid red;
+        border-radius: 50%;
+        position: absolute;
+        top: -20px;
+        left: -6px;
+      }
+
 
         .outer-container {
             display: flex;
@@ -150,8 +172,10 @@
         }
 
         #redis-status-Box {
+            padding-left: 20px; /* Moves text 20px from the left */
+            padding-top: 10px;  /* Moves text 10px from the top */
             width: 10%;
-            height: 200px;
+            height: 100px;
             border: 1px solid #ccc;
             border-radius: 4px;
             display: flex;
@@ -159,12 +183,12 @@
             justify-content: center;
             font-size: 24px;
             margin-right: 20px; /* Space between the boxes */
-            font-size: 24px;
+            font-size: 12px;
         }
 
         #status-box {
             width: 90%;
-            height: 202px;
+            height: 111px;
             box-sizing: border-box;
             padding: 10px;
             border: 1px solid #ccc;
@@ -172,7 +196,7 @@
             resize: none;
             overflow-y: auto;
             display: flex;
-            font-size: 24px;
+            font-size: 12px;
             margin-right: 10px; /* Space between the boxes */
         }
 
@@ -183,7 +207,10 @@
 <div class="outer-container">
     <div class="main-container">
         <div class="form-container">
-            <h1>Submit Training Parameters</h1>
+            <h1>Localization Model Runner</h1>
+            <div style="text-align: right;">
+              <small>version 0.1</small>
+            </div>
             <form id="trainingForm">
 
                 <div class="form-group-inline">
@@ -204,7 +231,7 @@
                 </div>
 
                 <div class="form-group">
-                    <label for="rx_blacklist">Rx Blacklist (comma-separated):</label>
+                    <label for="rx_blacklist">Rx Blacklist (comma-separated)*:</label>
                     <input type="text" id="rx_blacklist" name="rx_blacklist" value="0">
                 </div>
 
@@ -230,12 +257,12 @@
 
                 <div class="form-group-inline">
                     <div class="filter-group">
-                        <label for="timespan_start">Timespan Start:</label>
+                        <label for="timespan_start">Start Time*:</label>
                         <input type="number" id="timespan_start" name="timespan_start" value="1675140329">
                     </div>
 
                     <div class="filter-group">
-                        <label for="timespan_end">Timespan End:</label>
+                        <label for="timespan_end">End Time*:</label>
                         <input type="number" id="timespan_end" name="timespan_end" value="1675352459">
                     </div>
                 </div>
@@ -244,18 +271,21 @@
 
                 <div class="form-group-inline">
                     <div class="filter-group">
-                        <label for="coordinates_1">SW (lat,lng):</label>
+                        <label for="coordinates_1">SW (lat,lng)*:</label>
                         <input type="text" id="coordinates_1" name="coordinates_1" value="37.610424,-122.531204">
                     </div>
 
                     <div class="filter-group">
-                        <label for="coordinates_2">NE (lat,lng):</label>
+                        <label for="coordinates_2">NE (lat,lng)*:</label>
                         <input type="text" id="coordinates_2" name="coordinates_2" value="37.808156,-122.336884">
                     </div>
                 </div>
 
-                <button type="submit">Submit</button>
+                <button type="submit">Run Model(s)</button>
             </form>
+            <div style="text-align: right;">
+              <small>*optional parameters</small>
+            </div>
         </div>
 
         <div class="map-container">
@@ -264,7 +294,7 @@
     </div>
 
     <div class="bottom-container">
-        <div id="redis-status-Box" >Loading...</div>
+        <div id="redis-status-Box" >Loading message broker..</div>
 
         <textarea id="status-box" readonly></textarea>
     </div>
@@ -274,6 +304,9 @@
 
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 <script src="https://unpkg.com/leaflet-draw/dist/leaflet.draw.js"></script>
+<script src="https://unpkg.com/mapbox-gl@2.15.0/dist/mapbox-gl.js"></script>
+<script src="https://unpkg.com/leaflet-mapbox-gl"></script>
+
 <script>
     document.getElementById('trainingForm').addEventListener('submit', function(event) {
         event.preventDefault();
@@ -318,14 +351,37 @@
 
 </script>
 <script>
-    function initMap(lat, lon) {
-        var map = L.map('map').setView([lat, lon], 5);
+    var map; // global map var
 
+    var redPinDivIcon = L.divIcon({
+      className: 'custom-red-pin',
+      html: "<div class='pin'></div><div class='pin-head'></div>",
+      iconSize: [30, 50],
+      iconAnchor: [15, 50] // Anchor the bottom tip of the pin
+    });
+
+    function initMap(lat, lon) {
+        map = L.map('map').setView([lat, lon], 5);
+/*
+        L.mapboxGL({
+            accessToken: 'none', // OpenMapTiles doesn't require a Mapbox token
+            style: 'https://maps.tilehosting.com/styles/basic/style.json?key=YOUR_API_KEY' // Replace with your style URL
+        }).addTo(map);*/
         // Add a custom tile layer
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        // this one for public server address
+//        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        L.tileLayer('http://127.0.0.1:8080/styles/klokantech-basic/{z}/{x}/{y}.png', {
             maxZoom: 19,
-            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        //    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
         }).addTo(map);
+
+        L.control.scale({
+          position: 'bottomright', // Options: 'topleft', 'topright', 'bottomleft', 'bottomright'
+          metric: true,          // Display the scale in metric units (meters/kilometers)
+          imperial: true         // Display the scale in imperial units (feet/miles)
+        }).addTo(map);
+
+        L.marker([40.6762341090111,-111.8145232207228]).addTo(map)
 
         var drawnItems = new L.FeatureGroup();
         map.addLayer(drawnItems);
@@ -434,23 +490,71 @@
         initMap(39.88, -98.43); // Default to a central location
     }
 
-    // to populate datsets dropdown
-    function datasetSelect(url) {
-    fetch(url)
-        .then(response => response.json())
-        .then(data => {
-            const select = document.getElementById('data_filename');
-            data.forEach(item => {
-                const option = document.createElement('option');
-                option.value = item;
-                option.text = item;
-                select.appendChild(option);
-            });
+    var locations = [
+  {lat: "51.50000", lng: "-0.125745"},
+  {lat: "51.503415", lng: "-0.119554"},
+    {lat: "51.50000", lng: "-0.125745"},
+  {lat: "51.503415", lng: "-0.119554"},  {lat: "51.62000", lng: "-0.145745"},
+  {lat: "51.504415", lng: "-0.119554"},  {lat: "51.53000", lng: "-0.135745"},
+  {lat: "51.505415", lng: "-0.119554"},  {lat: "51.50000", lng: "-0.125745"},
+  {lat: "51.506415", lng: "-0.119554"},  {lat: "51.50000", lng: "-0.165745"},
+  {lat: "51.507415", lng: "-0.119554"},  {lat: "51.50000", lng: "-0.155745"},
+  {lat: "51.508415", lng: "-0.119554"},  {lat: "51.50000", lng: "-0.125745"},
+  {lat: "51.5093415", lng: "-0.119554"},
+  {lat: "51.511275", lng: "-0.119210"}
+]
+
+    function addToMap(locationArray){
+
+
+
+       //iterates through the array object called from the server
+       [].forEach.call(locationArray, function(location){
+
+           var marker = L.marker([location.lat1, location.lon1],{ icon: redPinDivIcon });
+           console.log('Trying to add marker', marker);
+           marker.addTo(map);
+
+          //you can even add a popup by doing
+          //marker.bindPopup("pop up content goes here").openPopup();
         })
-        .catch(error => console.error('Error fetching data:', error));
+      }
+
+        // to populate datsets dropdown and get the selection
+    function datasetSelect(url) {
+        fetch(url)
+            .then(response => response.json())
+            .then(data => {
+                const select = document.getElementById('data_filename');
+                // Populate the dropdown
+                data.files.forEach(item => {
+                    const option = document.createElement('option');
+                    option.value = item;
+                    option.text = item;
+                    select.appendChild(option);
+                });
+
+                // Add event listener to handle selection changes
+                select.addEventListener('change', () => {
+                    const selectedValue = select.value;
+                    if (selectedValue) {
+                        const requestUrl = `http://127.0.0.1:5000/selected_data_file?filename=${encodeURIComponent(selectedValue)}`;
+                        fetch(requestUrl)
+                            .then(response => response.json())
+                            .then(result => {
+                                console.log('Response from server:', result);
+                                console.log('But trying to add locations:', locations);
+
+                                addToMap(result);
+                            })
+                            .catch(error => console.error('Error sending GET request:', error));
+                    }
+                });
+            })
+            .catch(error => console.error('Error fetching data:', error));
     }
 
-    datasetSelect('/data_files');
+    datasetSelect('http://127.0.0.1:5000/data_files');
 
 </script>
 

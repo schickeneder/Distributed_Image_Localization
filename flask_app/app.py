@@ -1,5 +1,6 @@
 from flask import Flask,jsonify,request,render_template,current_app,flash
 from celery import Celery, group, chain, chord
+
 import json
 import os
 import redis
@@ -12,6 +13,8 @@ import math
 import csv
 import pickle
 
+from flask_cors import CORS # need this to allow cross origin requests
+
 
 app = Flask(__name__)
 app.config['CELERY_BROKER_URL'] = os.environ.get('CELERY_BROKER_URL') # must contain password in URL for remote
@@ -22,6 +25,7 @@ app.config['REDIS_STATE'] = os.environ.get('REDIS_STATE')
 app.config['GROUP_JOBS'] = {} # make a dict to support other metadata like start time
 app.config['UPLOAD_FOLDER'] = 'uploads'
 app.config['ALLOWED_EXTENSIONS'] = ['csv']
+CORS(app)
 
 def make_celery(app):
     celery = Celery(
@@ -337,13 +341,45 @@ def longtask():
 
 @app.route('/data_files', methods=['GET'])
 def data_files():
-    res = [
-    "datasets/helium_SD/SF30_helium.csv",
-    "datasets/helium_SD/SF31_helium.csv",
-    "datasets/helium_SD/SF32_helium.csv"
-    ]
+    directory_path = "datasets/helium_SD/"
+    try:
+        # Get the list of files in the directory
+        files = os.listdir(directory_path)
+        # Filter only files (ignore subdirectories)
+        file_names = [f for f in files if os.path.isfile(os.path.join(directory_path, f))]
+        return jsonify({"files": file_names})
+    except FileNotFoundError:
+        # Handle case where the directory does not exist
+        return jsonify({"error": "Directory not found"}), 404
+    except Exception as e:
+        # Handle other exceptions
+        return jsonify({"error": str(e)}), 500
+    # res = [
+    # "datasets/helium_SD/SF30_helium.csv",
+    # "datasets/helium_SD/SF31_helium.csv",
+    # "datasets/helium_SD/SF32_helium.csv"
+    # ]
 
     return jsonify(res)
+
+@app.route('/selected_data_file', methods=['GET'])
+def handle_selected_data_file():
+    directory_path = "datasets/helium_SD/"
+    filename = request.args.get('filename')
+    if filename:
+        res = load_dataset_from_csv(directory_path+filename)
+        # Perform some action with the selected filename
+        filtered_df = res[['lat1', 'lon1']].dropna().drop_duplicates()
+
+        filtered_df['lat1'] = filtered_df['lat1'].astype(float)
+        filtered_df['lon1'] = filtered_df['lon1'].astype(float)
+
+        # Convert the filtered DataFrame to a list of dictionaries
+        result = filtered_df.to_dict(orient='records')
+        # print(result,flush=True)
+        # Return as JSON response
+        return jsonify(result)
+    return jsonify({"error": "No filename provided"}), 400
 
 @app.route('/gputask')
 def gputask():
