@@ -168,6 +168,8 @@ def combine_per_node_with_others(results_dict,stats_dict=None, exclude_rows_miss
         min_counts = {"CNN_error": 0, "log10": 0, "log10_per_node": 0}
         mins_list = []
         data_list = []
+        CNN_error_list = []
+        pnpl_error_list = []
         for row in reader:
             city_id = row[1]  # city_id column
             CNN_error = float(row[2])    # error column
@@ -203,6 +205,8 @@ def combine_per_node_with_others(results_dict,stats_dict=None, exclude_rows_miss
                 min_counts[min_key] += 1
                 min_value = min_key
                 mins_list.append(float(values[min_key]))
+                CNN_error_list.append(float(values["CNN_error"]))
+                pnpl_error_list.append(float(values["log10_per_node"]))
 
         df = pd.DataFrame(data_list, columns=new_header)
         print(f"printing df {df}")
@@ -237,6 +241,8 @@ def combine_per_node_with_others(results_dict,stats_dict=None, exclude_rows_miss
 
 
         print("Min counts:", min_counts)
+        print("average CNN error", np.mean(CNN_error_list))
+        print("average pnpl error", np.mean(pnpl_error_list))
         print("na_counts:", na_counts)
         print(f" average of min error {np.mean(np.array(mins_list))}")
 

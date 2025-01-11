@@ -341,33 +341,62 @@ def longtask():
 
 @app.route('/data_files', methods=['GET'])
 def data_files():
-    directory_path = "datasets/helium_SD/"
+    # add any directory paths
+    # List of directories to search
+    directories = ["datasets/helium_SD/", "datasets/external/"]
+
     try:
-        # Get the list of files in the directory
-        files = os.listdir(directory_path)
-        # Filter only files (ignore subdirectories)
-        file_names = [f for f in files if os.path.isfile(os.path.join(directory_path, f))]
-        return jsonify({"files": file_names})
-    except FileNotFoundError:
-        # Handle case where the directory does not exist
-        return jsonify({"error": "Directory not found"}), 404
+        # Initialize a single list to hold all filenames
+        all_files = []
+
+        # Iterate through each directory
+        for directory_path in directories:
+            if os.path.exists(directory_path) and os.path.isdir(directory_path):
+                # List files in the directory and filter out subdirectories
+                files = [
+                    f for f in os.listdir(directory_path)
+                    if os.path.isfile(os.path.join(directory_path, f))
+                ]
+                all_files.extend(files)  # Add filenames to the list
+            else:
+                # Optionally log or skip directories that don't exist
+                print(f"Directory not found: {directory_path}")
+
+        # Return a JSON response with all filenames
+        return jsonify({"files": all_files})
+
     except Exception as e:
         # Handle other exceptions
         return jsonify({"error": str(e)}), 500
-    # res = [
-    # "datasets/helium_SD/SF30_helium.csv",
-    # "datasets/helium_SD/SF31_helium.csv",
-    # "datasets/helium_SD/SF32_helium.csv"
-    # ]
 
-    return jsonify(res)
+    #
+    # directory_path_external = "external_datasets"
+    # directory_path = "datasets/helium_SD/"
+    # try:
+    #     # Get the list of files in the directory
+    #     files = os.listdir(directory_path)
+    #     # Filter only files (ignore subdirectories)
+    #     file_names = [f for f in files if os.path.isfile(os.path.join(directory_path, f))]
+    #     return jsonify({"files": file_names})
+    # except FileNotFoundError:
+    #     # Handle case where the directory does not exist
+    #     return jsonify({"error": "Directory not found"}), 404
+    # except Exception as e:
+    #     # Handle other exceptions
+    #     return jsonify({"error": str(e)}), 500
+    #
+    # return jsonify(res)
 
 @app.route('/selected_data_file', methods=['GET'])
 def handle_selected_data_file():
+    directories = ["datasets/helium_SD/", "datasets/external/"]
     directory_path = "datasets/helium_SD/"
     filename = request.args.get('filename')
     if filename:
-        res = load_dataset_from_csv(directory_path+filename)
+        for directory_path in directories:
+            if filename in os.listdir(directory_path):
+                res = load_dataset_from_csv(directory_path+filename)
+
         # Perform some action with the selected filename
         filtered_df = res[['lat1', 'lon1']].dropna().drop_duplicates()
 
@@ -569,10 +598,10 @@ def log_results(results):
 
 
 if __name__ == '__main__':
-    filepath = "/datasets/global/all_data.csv" # this maps externally do global dataset file in remote_dev.env
+    global_dataset_filepath = "/datasets/global/all_data.csv" # this maps externally to global dataset file in remote_dev.env
     print("Loading global dataset..",flush=True) # print immediately
     global_dataset_loaded = False # flag updates when global_dataset load completes
     global_dataset = None # placeholder for global variable
     # only uncomment below if needed, because it takes a while to load otherwise
-    threading.Thread(target=load_global_dataset, args=(filepath,)).start()
+    threading.Thread(target=load_global_dataset, args=(global_dataset_filepath,)).start()
     app.run(host='0.0.0.0',debug=True)
