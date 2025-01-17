@@ -1,4 +1,4 @@
-from flask import Flask,jsonify,request,render_template,current_app,flash
+from flask import Flask,jsonify,request,render_template,current_app,flash, Response
 from celery import Celery, group, chain, chord
 
 import json
@@ -12,6 +12,7 @@ import threading
 import math
 import csv
 import pickle
+import io
 
 from flask_cors import CORS # need this to allow cross origin requests
 
@@ -50,9 +51,6 @@ if not os.path.exists(app.config['UPLOAD_FOLDER']):
     os.makedirs(app.config['UPLOAD_FOLDER'])
 
 
-# TODO: load full helium coords list into memory and see how quickly it can filter out (in real time?) datasets based on coords
-
-
 # store the global dataset in memory so we can quickly select subsets when requested
 def load_global_dataset(filepath):
     global global_dataset_loaded
@@ -74,6 +72,7 @@ def load_global_dataset(filepath):
         dataset.columns = column_names
         global_dataset_loaded = True
         global_dataset = dataset
+        print("Done loading global dataset")
     except Exception as e:
         print(f"Could not load dataset {filepath} because {e}")
 
@@ -207,6 +206,51 @@ def run_one_model_corners(dataset_filename,lat1,lon1,lat2,lon2):
     task1.apply_async()
 
     return "Processed input and started task."
+
+
+@app.route('/make_dataset_from_global/<square_length>/<center_lat>/<center_lon>')
+def run_one_location_from_global_at_center(center_lat,center_lon,square_length=8000):
+    # runs model centered at provided coordinates
+
+    center_lat = float(center_lat)
+    center_lon = float(center_lon)
+    square_length = float(square_length)
+
+    if global_dataset_loaded:
+        bl_coords, tr_coords = get_square_corners(center_lat, center_lon, square_length)
+        local_dataset = filter_coordinates(global_dataset,
+                                           ((bl_coords[0], bl_coords[1]),
+                                            (tr_coords[0], tr_coords[1])))
+
+
+        data_filename = f"latlon_{center_lat:.2f}_{center_lon:.2f}" + "__" + str(int(square_length / 1000)) + '.csv'
+
+        output = None
+        try:
+            output = io.StringIO()
+            local_dataset.to_csv(output, index=False)
+            output.seek(0)
+        except Exception as e:
+            print(f"Couldn't generate local dataset {data_filename} because {e}")
+
+        if output:
+            # Send the file as a downloadable response
+            return Response(
+                output,
+                mimetype='text/csv',
+                headers={
+                    'Content-Disposition': f'attachment;filename={data_filename}'
+                }
+            )
+        else:
+            return "failed creating the data file"
+
+
+
+    else:
+        return "Waiting for global_dataset to load, please try again later."
+
+
 
 # haven't tested this yet
 @app.route('/run_one_model_center/<dataset_filename>/<square_length>/<center_lat>/<center_lon>')
