@@ -10,6 +10,9 @@ import csv
 from coordinates import HELIUMSD_LATLON
 import os
 import math
+import code
+import matplotlib.pyplot as plt
+
 
 
 from attacker import batch_wrapper, get_all_attack_preds_without_grad
@@ -160,6 +163,54 @@ def get_time_splits(passed_params = {None}):
 
     return splits
 
+def plot_splits(rldataset):
+    all_tx_vecs = rldataset.data[None].tx_vecs
+    keylist = []
+    for key in rldataset.data.keys():
+        if key == None or "extra" in key: continue
+        keylist.append(key)
+    print(keylist)
+    train_tx_vecs = rldataset.data[keylist[-1]].tx_vecs
+    test_tx_vecs = rldataset.data[keylist[-2]].tx_vecs
+    val_tx_vecs = rldataset.data[keylist[-3]].tx_vecs
+
+    coordinates = np.array([point[0] for point in all_tx_vecs])
+    all_x_coords = coordinates[:, 0]
+    all_y_coords = coordinates[:, 1]
+
+    coordinates = np.array([point[0] for point in train_tx_vecs])
+    train_x_coords = coordinates[:, 0]
+    train_y_coords = coordinates[:, 1]
+
+    coordinates = np.array([point[0] for point in test_tx_vecs])
+    test_x_coords = coordinates[:, 0]
+    test_y_coords = coordinates[:, 1]
+
+    coordinates = np.array([point[0] for point in val_tx_vecs])
+    val_x_coords = coordinates[:, 0]
+    val_y_coords = coordinates[:, 1]
+
+    plt.figure(figsize=(8, 6))
+    plt.scatter(train_x_coords, train_y_coords, label=keylist[-1], edgecolors='gray', s=100, facecolors='none', alpha=1.0)
+    plt.scatter(test_x_coords, test_y_coords, label=keylist[-2], edgecolors='red', s=100, facecolors='red', alpha=1.0)
+    plt.scatter(val_x_coords, val_y_coords, label=keylist[-3], edgecolors='black', s=100, facecolors='none',alpha=1.0)
+
+
+    # plt.xlabel('Longitude')
+    # plt.ylabel('Latitude')
+    # plt.title('Scatter Plot of Coordinates')
+    # plt.legend()
+    plt.xticks([])  # Remove x-axis tick values
+    plt.yticks([])
+    # plt.grid()
+
+    filename = f'{rldataset.data_filename.split("\\")[-1].split(".csv")[0]}_{keylist[-2].replace('.','_')}.png'
+    print(f"filename is {filename}")
+
+    plt.savefig(filename, dpi=300, bbox_inches='tight')  # High resolution, tight layout
+    #
+    # plt.show()
+    # plt.close()
 def main_process(passed_params = {None}):
 
     # formerly globals **********
@@ -301,6 +352,12 @@ def main_process(passed_params = {None}):
             continue
 
         rldataset.print_dataset_stats()
+
+        # plot the different splits
+        plot_splits(rldataset)
+        continue
+
+        code.interact(local=locals())
 
         print("about to run model")
 

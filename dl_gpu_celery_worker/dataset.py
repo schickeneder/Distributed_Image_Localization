@@ -180,6 +180,7 @@ class RSSLocDataset():
         self.data = {}
         self.buffer = 1
         self.data_files = data_files[self.params.dataset_index]
+        self.data_filename = params.data_filename
         self.load_data()
         if not self.error_state:
             print(f"line 177 dataset.py error_state: {self.error_state}")
