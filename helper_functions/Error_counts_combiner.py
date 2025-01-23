@@ -3,6 +3,9 @@ import re
 import csv
 import numpy as np
 import ast
+from datetime import datetime
+import matplotlib.pyplot as plt
+
 
 # merges outputs for error results and sample count suitable for graphing
 # combines and stores "city_id", "CNN_error", "log10", "log10_per_node", "sample_counts" for 11000+ cities
@@ -247,6 +250,7 @@ def combine_per_node_with_others(results_dict,stats_dict=None, exclude_rows_miss
         print(f" average of min error {np.mean(np.array(mins_list))}")
 
     return
+
 
 
 if __name__ == '__main__':

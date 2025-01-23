@@ -354,10 +354,9 @@ def main_process(passed_params = {None}):
         rldataset.print_dataset_stats()
 
         # plot the different splits
-        plot_splits(rldataset)
-        continue
+        # plot_splits(rldataset)
+        # continue
 
-        code.interact(local=locals())
 
         print("about to run model")
 
