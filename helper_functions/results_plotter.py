@@ -246,7 +246,6 @@ def gps_to_array_coords(latitudes, longitudes, bottom_left, top_right, m, n):
 
 
 def plot_node_locations_on_elevation(geonameid = 5520993, denylist_filter = False):
-    # TODO need to fix lats, they are reversed North-South!
     # [4791259, 'Virginia Beach', 689.3279]
 
     denylist = []
