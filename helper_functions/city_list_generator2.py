@@ -3,6 +3,7 @@ import pickle
 import pandas as pd
 import os
 import math
+import code
 # citylist source files obtained from https://download.geonames.org/export/dump/
 
 # returns a list and dict of cities with geonameid as dict key
@@ -178,4 +179,28 @@ if __name__ == '__main__':
     global_dataset_loaded = False # flag updates when global_dataset load completes
     global_dataset = None
     load_global_dataset(r"C:\Users\ps\Helium_Data\all_nz_v2_di9.csv")
+    code.interact(local=locals())
     generate_datasets("cities15000_dict_all.pickle")
+
+# Errors with the following cities due to characters in their names when running this on Windows
+# Couldn't save local dataset datasets/generated/12156875_Wexford/Maryvale__CA8.csv because Cannot save file into a non-existent directory: 'datasets\generated\12156875_Wexford'
+# Couldn't save local dataset datasets/generated/2658656_ZÃ¼rich (Kreis 11) / Seebach__CH8.csv because Cannot save file into a non-existent directory: 'datasets\generated\2658656_ZÃ¼rich (Kreis 11) '
+# Couldn't save local dataset datasets/generated/2659310_ZÃ¼rich (Kreis 11) / Oerlikon__CH8.csv because Cannot save file into a non-existent directory: 'datasets\generated\2659310_ZÃ¼rich (Kreis 11) '
+# Couldn't save local dataset datasets/generated/2660306_ZÃ¼rich (Kreis 10) / HÃ¶ngg__CH8.csv because Cannot save file into a non-existent directory: 'datasets\generated\2660306_ZÃ¼rich (Kreis 10) '
+# Couldn't save local dataset datasets/generated/2661513_Biel/Bienne__CH8.csv because Cannot save file into a non-existent directory: 'datasets\generated\2661513_Biel'
+# Couldn't save local dataset datasets/generated/2661666_ZÃ¼rich (Kreis 4) / Aussersihl__CH8.csv because Cannot save file into a non-existent directory: 'datasets\generated\2661666_ZÃ¼rich (Kreis 4) '
+# Couldn't save local dataset datasets/generated/6295475_ZÃ¼rich (Kreis 10) / Wipkingen__CH8.csv because Cannot save file into a non-existent directory: 'datasets\generated\6295475_ZÃ¼rich (Kreis 10) '
+# Couldn't save local dataset datasets/generated/6295484_ZÃ¼rich (Kreis 11) / Affoltern__CH8.csv because Cannot save file into a non-existent directory: 'datasets\generated\6295484_ZÃ¼rich (Kreis 11) '
+# Couldn't save local dataset datasets/generated/6295495_ZÃ¼rich (Kreis 2) / Wollishofen__CH8.csv because Cannot save file into a non-existent directory: 'datasets\generated\6295495_ZÃ¼rich (Kreis 2) '
+# Couldn't save local dataset datasets/generated/6295498_ZÃ¼rich (Kreis 3) / Sihlfeld__CH8.csv because Cannot save file into a non-existent directory: 'datasets\generated\6295498_ZÃ¼rich (Kreis 3) '
+# Couldn't save local dataset datasets/generated/6295504_ZÃ¼rich (Kreis 6) / Unterstrass__CH8.csv because Cannot save file into a non-existent directory: 'datasets\generated\6295504_ZÃ¼rich (Kreis 6) '
+# Couldn't save local dataset datasets/generated/6295512_ZÃ¼rich (Kreis 9) / Albisrieden__CH8.csv because Cannot save file into a non-existent directory: 'datasets\generated\6295512_ZÃ¼rich (Kreis 9) '
+# Couldn't save local dataset datasets/generated/6295513_ZÃ¼rich (Kreis 9) / Altstetten__CH8.csv because Cannot save file into a non-existent directory: 'datasets\generated\6295513_ZÃ¼rich (Kreis 9) '
+# Couldn't save local dataset datasets/generated/2849156_Reichenbach/Vogtland__DE8.csv because Cannot save file into a non-existent directory: 'datasets\generated\2849156_Reichenbach'
+# Couldn't save local dataset datasets/generated/8593855_Neustadt/Nord__DE8.csv because Cannot save file into a non-existent directory: 'datasets\generated\8593855_Neustadt'
+# Couldn't save local dataset datasets/generated/8593856_Neustadt/SÃ¼d__DE8.csv because Cannot save file into a non-existent directory: 'datasets\generated\8593856_Neustadt'
+# Couldn't save local dataset datasets/generated/3104499_Gasteiz / Vitoria__ES8.csv because Cannot save file into a non-existent directory: 'datasets\generated\3104499_Gasteiz '
+# Couldn't save local dataset datasets/generated/3110044_Donostia / San SebastiÃ¡n__ES8.csv because Cannot save file into a non-existent directory: 'datasets\generated\3110044_Donostia '
+# Couldn't save local dataset datasets/generated/3116503_Arrasate / MondragÃ³n__ES8.csv because Cannot save file into a non-existent directory: 'datasets\generated\3116503_Arrasate '
+# Couldn't save local dataset datasets/generated/3118228_Laudio / Llodio__ES8.csv because Cannot save file into a non-existent directory: 'datasets\generated\3118228_Laudio '
+# Couldn't save local dataset datasets/generated/12718709_Kamuhanda / Ruyenzi__RW8.csv because Cannot save file into a non-existent directory: 'datasets\generated\12718709_Kamuhanda '

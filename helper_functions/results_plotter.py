@@ -301,12 +301,17 @@ def plot_node_locations_on_elevation(geonameid = 5520993, denylist_filter = Fals
 
 
     plt.figure(figsize=(10, 8))
-    plt.imshow(elevation_data, cmap='terrain', vmin=np.min(elevation_data), vmax=np.max(elevation_data))
-    plt.colorbar(label='Elevation (m)')
-    plt.title(f'Elevation Map for {city_name}')
-    plt.xlabel('Longitude')
-    plt.ylabel('Latitude')
-    plt.scatter(x_vals,y_vals, c='blue', alpha=0.2, edgecolors='black')
+    plt.imshow(elevation_data, cmap='gray', vmin=np.min(elevation_data), vmax=np.max(elevation_data))
+    cbar = plt.colorbar()
+    cbar.set_label('Elevation (m)',fontsize = 20)
+    cbar.ax.tick_params(labelsize=20)
+    # plt.title(f'Elevation Map for {city_name}')
+    plt.xticks([])  # Remove x-axis ticks
+    plt.yticks([])  # Remove y-axis ticks
+    # plt.xlabel('Longitude')
+    # plt.ylabel('Latitude')
+    plt.tight_layout()
+    plt.scatter(x_vals,y_vals, facecolors='white', edgecolors='red', s=100)
 
     filename = f"nodes_and_elevation_{geonameid}_{city_name}_{"denylist" if denylist_filter else "normal"}.png"
     plt.savefig(filename, dpi=300)
@@ -745,6 +750,11 @@ if __name__ == '__main__':
     # save_elevationstdev_vs_error()
     # plot_and_save_samples_vs_error()
     # plot_elevationstdev_vs_error('20240925_normal_error_vs_elev_stdev_exact.csv')
-    genameid_list = [4791259,5520993,625144,618426]
+    # genameid_list = [4791259,5520993,625144,618426]
+    # best worst US cities genameid
+    # genameid_list = [4174757, 4691930, 4791259, 4951305, 5139568, 5150529, 5308655, 5350937, 5454711, 5520993]
+    # best worse EUro cities genameid
+    genameid_list = [3067696, 3165524, 3172394, 3191281, 611717, 616052, 618426, 625144, 709717, 709930]
+
     for geonameid in genameid_list:
         plot_node_locations_on_elevation(geonameid,denylist_filter = False)
