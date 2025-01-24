@@ -204,7 +204,8 @@ def plot_splits(rldataset):
     plt.yticks([])
     # plt.grid()
 
-    filename = f'{rldataset.data_filename.split("\\")[-1].split(".csv")[0]}_{keylist[-2].replace('.','_')}.png'
+    tmp_filename = rldataset.data_filename.split("\\")[-1].split(".csv")[0]
+    filename = f'{tmp_filename}_{keylist[-2].replace('.','_')}.png'
     print(f"filename is {filename}")
 
     plt.savefig(filename, dpi=300, bbox_inches='tight')  # High resolution, tight layout

@@ -68,7 +68,8 @@ def test_pathloss_on_cities_from_generated(directory_path,log_file):
         params = {'func_list': ["PATHLOSS"], "data_filename": city}
         try:
             results = run(params)
-            print(f"({count}/{total_count}) {city.split('\\')[-1]} {results}")
+            tmp_city = city.split('\\')[-1]
+            print(f"({count}/{total_count}) {tmp_city} {results}")
             results_dict[city] = results
             with open(log_file, "a") as file:
                 file.write(f"{city},{results}\n")
@@ -215,7 +216,7 @@ def default_test():
     return(results)
 
 if __name__ == '__main__':
-    default_test()
+    # default_test()
     # directory_path = r"C:\Users\ps\OneDrive\Documents\DL_Image_Localization_Results\20240926_top60us_normal2\generated\best_worst"
     # results_dict_US = test_pathloss_on_cities_from_generated(directory_path,"Best_Worst_US_cities.log")
     #
@@ -225,8 +226,8 @@ if __name__ == '__main__':
     # print(f"US cities best_worst results {results_dict_US.values()}")
     # print(f"Euro cities best_worst results {results_dict_Euro.values()}")
 
-    # directory_path = r"C:\Users\ps\OneDrive\Documents\DL_Image_Localization_Results\20240921_15000cities_normal\generated"
-    # results_dict_15000cities = test_pathloss_on_cities_from_generated_multi(directory_path,"15000_cities_PL_MMSE.log")
+    directory_path = r"C:\Users\ps\OneDrive\Documents\DL_Image_Localization_Results\20240921_15000cities_normal\generated"
+    results_dict_15000cities = test_pathloss_on_cities_from_generated_multi(directory_path,"15000_cities_PL_MMSE.log")
 
     #TODO: denylist filtered with pathloss
     #TODO: also need to repeat other correlation experiments on pathloss data..
