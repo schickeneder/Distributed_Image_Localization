@@ -226,8 +226,12 @@ if __name__ == '__main__':
     # print(f"US cities best_worst results {results_dict_US.values()}")
     # print(f"Euro cities best_worst results {results_dict_Euro.values()}")
 
-    directory_path = r"C:\Users\ps\OneDrive\Documents\DL_Image_Localization_Results\20240921_15000cities_normal\generated"
-    results_dict_15000cities = test_pathloss_on_cities_from_generated_multi(directory_path,"15000_cities_PL_MMSE.log")
+    # directory_path = r"C:\Users\ps\OneDrive\Documents\DL_Image_Localization_Results\20240921_15000cities_normal\generated"
+    # results_dict_15000cities = test_pathloss_on_cities_from_generated_multi(directory_path,"15000_cities_v2_PL_MMSE.log")
+
+    directory_path = r"C:\Users\ps\OneDrive\Documents\DL_Image_Localization_Results\20250123_15000cities_v2\generated"
+    results_dict_15000cities = test_pathloss_on_cities_from_generated_multi(directory_path,"15000_cities_v2_PL_MMSE.log")
+
 
     #TODO: denylist filtered with pathloss
     #TODO: also need to repeat other correlation experiments on pathloss data..

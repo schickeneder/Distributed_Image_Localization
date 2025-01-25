@@ -4,7 +4,6 @@ import csv
 import numpy as np
 import ast
 from datetime import datetime
-import matplotlib.pyplot as plt
 
 
 # merges outputs for error results and sample count suitable for graphing
@@ -79,7 +78,7 @@ def get_per_node_pl_data():
     #     print(f"Filename: {filename}, log10: {log10}, log10_per_node: {log10_per_node}")
 
     # Now get MMSE results
-    input_file = '20250103_PL_PnPL_MMSE_15000_cities.log'
+    input_file = '20250125_normal_15000_cities_v2_PL_MMSE.log'
     with open(input_file, 'r') as f:
         for line in f:
             tmp_line = line.strip().split('generated\\')[-1]
@@ -115,8 +114,6 @@ def get_per_node_pl_data():
 
     print(f"log10_error, log10_PN_error, log10_MSE_error, log10_PN_MSE_error {np.mean(log10_error_list)}, {np.mean(log10_PN_list)}, {np.mean(log10_error_MSE_list)}, {np.mean(log10_PN_error_MSE_list)}")
     print(f"counts: {len(log10_error_list)}, {len(log10_PN_list)}, {len(log10_error_MSE_list)}, {len(log10_PN_error_MSE_list)}")
-
-
 
     return results_dict
 
@@ -249,6 +246,10 @@ def combine_per_node_with_others(results_dict,stats_dict=None, exclude_rows_miss
         print("na_counts:", na_counts)
         print(f" average of min error {np.mean(np.array(mins_list))}")
 
+        # also write to a .csv
+
+        df.to_csv("20250125_combined_errors_and_sample_counts.csv", index=False)
+
     return
 
 
@@ -261,3 +262,23 @@ if __name__ == '__main__':
     # print(results)
     combine_per_node_with_others(results,stats_dict)
     print(f"length of results: {len(results)}")
+
+'''
+20250125 Summary of results
+With original PL and PnPL with vector bias
+
+Min counts: {'CNN_error': 3261, 'log10': 17, 'log10_per_node': 6663}
+average CNN error 1117.6927964653075
+average pnpl error 937.4757065563566
+na_counts: 0
+ average of min error 781.4563880323608
+length of results: 11999
+
+with v2 cities dataset
+
+Min counts: {'CNN_error': 3261, 'log10': 17, 'log10_per_node': 6663}
+average CNN error 1117.6927964653075
+average pnpl error 937.4757065563566
+na_counts: 0
+ average of min error 781.4563880323608
+length of results: 12214'''

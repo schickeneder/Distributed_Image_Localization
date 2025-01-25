@@ -14,6 +14,9 @@ from datetime import datetime
 from collections import Counter
 import code
 
+# colleciton of plotting functions
+# cities_error_and_counts.csv contains CNN_error and sample counts per city
+# 20240912_deny_list_merged_output.csv same as above but with denylist enabled, so some samples are excluded
 
 def plot_and_save_samples_vs_error(merged_file = 'cities_error_and_counts.csv'):#'20240912_deny_list_merged_output.csv' ):
     # Read data from CSV file
@@ -63,6 +66,41 @@ def plot_and_save_samples_vs_error2(merged_file = 'cities_error_and_counts.csv')
 
 
     filename = f"samples_vs_error_plot_{len(x)}cities_denylist.png"
+    plt.savefig(filename, dpi=300)
+    # Show plot
+    plt.show()
+
+    # Calculate Pearson correlation coefficient and p-value
+    correlation_coefficient, p_value = pearsonr(x, y)
+
+    print(f'Pearson correlation coefficient: {correlation_coefficient}')
+    print(f'P-value: {p_value}')
+    print(f"cities count: {len(x)}")
+    print(f"Mean samples_count {np.mean(y)} and error {np.mean(x)} ")
+
+def plot_and_save_samples_vs_error3(merged_file = '20250125_combined_errors_and_sample_counts.csv'):#'20240912_deny_list_merged_output.csv' ):
+    # Read data from most recent .csv file that was generated in Erro_counts_combiner.py
+    # Should have correct headers so we can access columns by name now
+    # header: city_id,CNN_error,log10,log10_per_node,mag_bias,sample_counts,mean_witness,median_witness,percent_with_nodes,percent_with_2_nodes
+
+    df = pd.read_csv(merged_file,encoding="ISO-8859-1")
+
+    # Extracting the first column as y values and the second column as x values
+    y = df["sample_counts"]
+    z = df["CNN_error"]
+    x = df["log10_per_node"]
+
+    plt.figure(figsize=(6, 2.5), dpi=300)
+    plt.scatter(x, y, c='blue', alpha=0.2, edgecolors='black')
+
+    # Add titles and labels
+    plt.title(f'CNN Mean Error vs Sample Quantity')
+    plt.ylabel('Number of Samples')
+    plt.xlabel('Mean Error (m)')
+
+    plt.tight_layout()
+
+    filename = f"20250125_samples_vs_cnn_error_plot_{len(x)}cities.png"
     plt.savefig(filename, dpi=300)
     # Show plot
     plt.show()
@@ -748,13 +786,13 @@ if __name__ == '__main__':
     # plot_timespan_and_error()
     # plot_denylist_and_error()
     # save_elevationstdev_vs_error()
-    # plot_and_save_samples_vs_error()
+    plot_and_save_samples_vs_error3()
     # plot_elevationstdev_vs_error('20240925_normal_error_vs_elev_stdev_exact.csv')
     # genameid_list = [4791259,5520993,625144,618426]
     # best worst US cities genameid
     # genameid_list = [4174757, 4691930, 4791259, 4951305, 5139568, 5150529, 5308655, 5350937, 5454711, 5520993]
     # best worse EUro cities genameid
-    genameid_list = [3067696, 3165524, 3172394, 3191281, 611717, 616052, 618426, 625144, 709717, 709930]
-
-    for geonameid in genameid_list:
-        plot_node_locations_on_elevation(geonameid,denylist_filter = False)
+    # genameid_list = [3067696, 3165524, 3172394, 3191281, 611717, 616052, 618426, 625144, 709717, 709930]
+    #
+    # for geonameid in genameid_list:
+    #     plot_node_locations_on_elevation(geonameid,denylist_filter = False)
