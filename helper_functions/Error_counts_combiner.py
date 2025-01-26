@@ -281,4 +281,8 @@ average CNN error 1117.6927964653075
 average pnpl error 937.4757065563566
 na_counts: 0
  average of min error 781.4563880323608
-length of results: 12214'''
+length of results: 12214
+
+log10_error, log10_PN_error, log10_MSE_error, log10_PN_MSE_error 2485.745584318104, 943.3438927014761, 2456.015454951979, 946.5644497285074
+counts: 11996, 11996, 11519, 11519
+'''

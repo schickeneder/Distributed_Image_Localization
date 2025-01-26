@@ -85,32 +85,49 @@ def plot_and_save_samples_vs_error3(merged_file = '20250125_combined_errors_and_
 
     df = pd.read_csv(merged_file,encoding="ISO-8859-1")
 
+    type = "Combined"
+
     # Extracting the first column as y values and the second column as x values
     y = df["sample_counts"]
-    z = df["CNN_error"]
-    x = df["log10_per_node"]
+    x = df["CNN_error"]
+    z = df["log10_per_node"]
+    w = df["Min_Column"] = df[["CNN_error", "log10_per_node"]].min(axis=1)
+
+    if type == "CNN":
+        error_vals = x
+        # Pearson correlation coefficient: 0.10962561200589263
+        # P - value: 5.829527972119393e-28
+    if type == "PnPL":
+        error_vals = z
+        # Pearson correlation coefficient: -0.25565283995513105
+        # P - value: 4.1295558484417784e-148
+    if type == "Combined":
+        error_vals = w
+        # Pearson correlation coefficient: -0.06281537765986075
+        # P - value: 3.6481696216799483e-10
 
     plt.figure(figsize=(6, 2.5), dpi=300)
-    plt.scatter(x, y, c='blue', alpha=0.2, edgecolors='black')
+    plt.scatter(error_vals, y, c='blue', alpha=0.2, edgecolors='black')
 
     # Add titles and labels
-    plt.title(f'CNN Mean Error vs Sample Quantity')
+    plt.title(f'{type} Mean Error vs Sample Quantity')
     plt.ylabel('Number of Samples')
     plt.xlabel('Mean Error (m)')
+    plt.xlim(0, 3500)
 
     plt.tight_layout()
 
-    filename = f"20250125_samples_vs_cnn_error_plot_{len(x)}cities.png"
+    filename = f"20250125_samples_vs_{type}_error_plot_{len(x)}cities.png"
     plt.savefig(filename, dpi=300)
     # Show plot
     plt.show()
 
     # Calculate Pearson correlation coefficient and p-value
-    correlation_coefficient, p_value = pearsonr(x, y)
+    correlation_coefficient, p_value = pearsonr(error_vals, y)
 
     print(f'Pearson correlation coefficient: {correlation_coefficient}')
     print(f'P-value: {p_value}')
-    print(f"cities count: {len(x)}")
+    print(f"cities count: {len(error_vals)}")
     print(f"Mean samples_count {np.mean(y)} and error {np.mean(x)} ")
 
 def plot_denylist_and_error():
@@ -165,17 +182,25 @@ def plot_denylist_and_error():
 # Fairland,US,39.07622,-76.95775,44.56766372846624 vs 2024_09_11-23_02_46-results.txt,Adeje__ES8.csv,1434.1417,4511
 # can take city_elev_stdev.csv or city_elev_stdev_exact.csv with more precise selection area
 def save_elevationstdev_vs_error(elev_stdev_file = 'city_elev_stdev_exact.csv',
-                                 error_file = 'cities_error_and_counts.csv',
-                                 outfile = '20240925_normal_error_vs_elev_stdev_exact.csv'):
+                                 # error_file='cities_error_and_counts.csv',
+                                 error_file = '20250125_combined_errors_and_sample_counts.csv',
+                                 # outfile = '20240925_normal_error_vs_elev_stdev_exact.csv'):
+                                 outfile = '20250125_normal_error_vs_elev_stdev_exact.csv',
+                                 error_type = "CNN_error",
+                                 error_type2 = "log10_per_node"):
+
     # reads the elevation file and outputs a combined outfile
+    # error_type can be any of CNN_error,log10,log10_per_node
 
     elev_stdev_data = pd.read_csv(elev_stdev_file, encoding="ISO-8859-1")
     error_data = pd.read_csv(error_file, encoding="ISO-8859-1")
+    outfile = f'20250125_normal_{error_type}_vs_elev_stdev_exact.csv'
+
 
     with open(outfile, 'w',newline='') as csvfile:
         print(f"opened {outfile} for writing")
         writer = csv.writer(csvfile)
-        header = ["city_id","error","stdev"]
+        header = ["city_id", error_type, error_type2, "stdev"]
         writer.writerow(header)
         for index,row in error_data.iterrows():
             # print(f"index {index} row{row} city_id:{row['city_id']}")
@@ -194,7 +219,11 @@ def save_elevationstdev_vs_error(elev_stdev_file = 'city_elev_stdev_exact.csv',
                         # print(city_id, city_id2)
                         # print(f"{city_id},{row['error']},{row2['stdev_elev']}")
                         try:
-                            row_towrite = [city_id,row['error'],row2['stdev_elev']]
+                            if error_type not in row:
+                                error_type = 'error'
+                            if error_type2 not in row:
+                                error_type2 = 'error'
+                            row_towrite = [city_id,row[error_type],row[error_type2],row2['stdev_elev']]
                             # print(row_towrite)
                             writer.writerow(row_towrite)
                         except Exception as e:
@@ -207,31 +236,48 @@ def save_elevationstdev_vs_error(elev_stdev_file = 'city_elev_stdev_exact.csv',
 # plot error vs elevation stdev, file format is city_id,error,stdev
 def plot_elevationstdev_vs_error(input_file = '20240912_error_vs_elev_stdev_exact.csv'):
     # Read data from CSV file
-    data = pd.read_csv(input_file)
+    df = pd.read_csv(input_file)
+
+    error_type = "CNN" # "PnPL"
 
     # Extracting the first column as y values and the second column as x values
-    y = data.iloc[:, 2] # elev stdev
-    x = data.iloc[:, 1] # error
+    y = df["stdev"]
+    if error_type == "CNN":
+        error_vals = df["CNN_error"]
+    if error_type == "PnPL":
+        error_vals = df["log10_per_node"]
 
-    plt.scatter(x, y, c='blue', alpha=0.2, edgecolors='black')
+
+    plt.figure(figsize=(6, 2.5), dpi=300)
+
+    plt.scatter(error_vals, y, c='blue', alpha=0.2, edgecolors='black')
 
     # Add titles and labels
-    plt.title(f'Mean Error vs Elevation σ')
+    plt.title(f'{error_type} Mean Error vs Elevation σ')
     plt.ylabel('Elevation σ² (m)')
     plt.xlabel('Mean Error (m)')
 
 
-    filename = f"error_vs_elev_stdev_plot_{len(x)}cities_denylist.png"
+    # plt.scatter(error_vals, y, c='blue', alpha=0.2, edgecolors='black')
+
+    # # Add titles and labels
+    # plt.title(f'{type} Mean Error vs Sample Quantity')
+    # plt.ylabel('Number of Samples')
+    # plt.xlabel('Mean Error (m)')
+    plt.xlim(0, 3500)
+
+    plt.tight_layout()
+    filename = f"20250125_{error_type}_error_vs_elev_stdev_plot_{len(error_vals)}cities.png"
     plt.savefig(filename, dpi=300)
     # Show plot
     plt.show()
 
     # Calculate Pearson correlation coefficient and p-value
-    correlation_coefficient, p_value = pearsonr(x, y)
+    correlation_coefficient, p_value = pearsonr(error_vals, y)
 
     print(f'Pearson correlation coefficient: {correlation_coefficient}')
     print(f'P-value: {p_value}')
-    print(f"cities count: {len(x)}")
+    print(f"cities count: {len(error_vals)}")
 
 
 def gps_to_array_coords(latitudes, longitudes, bottom_left, top_right, m, n):
@@ -785,9 +831,22 @@ if __name__ == '__main__':
     # temporal_spread_all()
     # plot_timespan_and_error()
     # plot_denylist_and_error()
-    # save_elevationstdev_vs_error()
-    plot_and_save_samples_vs_error3()
-    # plot_elevationstdev_vs_error('20240925_normal_error_vs_elev_stdev_exact.csv')
+    # save_elevationstdev_vs_error(error_type="CNN_error",error_type2="log10_per_node")
+
+    # plot_and_save_samples_vs_error3()
+    plot_elevationstdev_vs_error('20250125_normal_CNN_error_vs_elev_stdev_exact.csv')
+
+    # CNN results
+    # Pearson correlation coefficient: -0.02291301163050756
+    # P - value: 0.023164510668291425
+    # cities count: 9821
+    # PnPL results
+    # Pearson correlation coefficient: 0.13274267748415708
+    # P - value: 7.505443939956434e-40
+    # cities count: 9821
+
+
+
     # genameid_list = [4791259,5520993,625144,618426]
     # best worst US cities genameid
     # genameid_list = [4174757, 4691930, 4791259, 4951305, 5139568, 5150529, 5308655, 5350937, 5454711, 5520993]
