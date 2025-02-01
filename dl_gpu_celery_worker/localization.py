@@ -150,7 +150,7 @@ class PhysLocalization():
         print(f"result of PL_exp min {res}")
         self.PL_exp = res.x
         print(f"PL_exp is {self.PL_exp}")
-        print(f"test result from error_optimizer_function {self.pathloss_error_optimizer_function(self.PL_exp, "MMSE")}")
+        print(f"test result from error_optimizer_function {self.pathloss_error_optimizer_function(self.PL_exp, 'MMSE')}")
 
 
 

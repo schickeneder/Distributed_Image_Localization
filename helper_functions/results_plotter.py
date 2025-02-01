@@ -833,8 +833,8 @@ if __name__ == '__main__':
     # plot_denylist_and_error()
     # save_elevationstdev_vs_error(error_type="CNN_error",error_type2="log10_per_node")
 
-    # plot_and_save_samples_vs_error3()
-    plot_elevationstdev_vs_error('20250125_normal_CNN_error_vs_elev_stdev_exact.csv')
+    plot_and_save_samples_vs_error3()
+    # plot_elevationstdev_vs_error('20250125_normal_CNN_error_vs_elev_stdev_exact.csv')
 
     # CNN results
     # Pearson correlation coefficient: -0.02291301163050756
