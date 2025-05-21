@@ -1,3 +1,6 @@
+**Distributed DL-Image-Localization
+**
+
 This is a code base used for applying localization models to different RF datasets, focusing primarily on the Helium Network's Proof-of-Coverage data.
 
 This software employs celery workers to parallelize model training and test across containers on distributed hosts. It can also be run self-contained on a local host using docker containers.
