@@ -1,5 +1,5 @@
-**Distributed DL-Image-Localization
-**
+# Distributed DL-Image-Localization
+
 
 This is a code base used for applying localization models to different RF datasets, focusing primarily on the Helium Network's Proof-of-Coverage data.
 
